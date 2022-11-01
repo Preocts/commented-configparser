@@ -1,81 +1,11 @@
-[![Python 3.7 | 3.8 | 3.9 | 3.10](https://img.shields.io/badge/Python-3.7%20%7C%203.8%20%7C%203.9%20%7C%203.10-blue)](https://www.python.org/downloads)
+[![Python 3.7 | 3.8 | 3.9 | 3.10 | 3.11](https://img.shields.io/badge/Python-3.7%20%7C%203.8%20%7C%203.9%20%7C%203.10%20%7C%203.11-blue)](https://www.python.org/downloads)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
 
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/Preocts/commented-configparser/main.svg)](https://results.pre-commit.ci/latest/github/Preocts/commented-configparser/main)
 [![Python tests](https://github.com/Preocts/commented-configparser/actions/workflows/python-tests.yml/badge.svg?branch=main)](https://github.com/Preocts/commented-configparser/actions/workflows/python-tests.yml)
-[![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/Preocts/[GIST KEY]/raw/commented-configparser-main)](https://nedbatchelder.com/blog/202209/making_a_coverage_badge.html)
 
 # commented-configparser
-
-## A template I use for most projects.
-
-Straight forward to use!
-
-**Kind of...**
-
-While this is the way I usually start my Python project setup this is far from
-the only way to do things. I invite you to use my template.  I also challenge
-you to craft the structure that works both for your project and you, creating
-your own template.  The amount of learning in doing so is well worth the effort.
-
----
-
-### Quick setup:
-
-Clone the repo or click the "Use this template" button in GitHub
-
-If you clone the repo instead of using it as a template; be sure to delete the
-`.git` folder and run `git init` before making any changes.
-
-Run the `init_template.py` script found in the root of the repo. You will be
-prompted for details and the steps listed below completed for you. You may then
-delete the `init_template.py` file, commit all changes, and dev on.
-
----
-
-### What to change for manual setup:
-
-* Remove the following place-holder files:
-  * `src/module_name/sample_data`
-  * `src/module_name/sample.py`
-  * `tests/test_sample.py`
-* Raname `src/module_name` to the desired project name
-* Update `pyproject.toml`:
-  * `[project]` section:
-    * `name`, `version`, `description`, `authors`
-    * `dependencies`
-      * see alternative for requirements.in if desired
-  * `[project.urls]`
-    * Update github homepage values
-  * `[tool.coverage.run]`
-    * `source_pkgs` : Update to reflect new `module_name` and any additional
-      modules
-* Coverage badge setup:
-  * If needed: Create an empty, private gist
-  * Save the gist's id to repository secret `COV_BADGE_GIST`
-  * If needed: Create a personal access token (PAT) with `gist` access
-  * Save the PAT to repository secret `COV_BADGE_TOKEN`
-  * **Note:** The coverage step is completely optional and will be skipped if
-    above secrets are missing.
-* Update `README.md` - Badges:
-  * Update owner and repo name of urls for `pre-commit.ci` badge
-  * Update owner and repo name of urls for `python tests` badge
-  * Update owner and repo name of gist url for `coverage` badge
-  * Replace gistId (from coverage setup) for `coverage` badge
-* Update `README.md` - Content:
-  * Replace title and this setup information
-  * Under **Local developer installation**
-    * Replace `{{ORG_NAME}}` with github name
-    * Replace `{{REPO_NAME}}` with repo name
-
-### Why `src/` structure:
-
-The benefit I get from this project structure comes from testing. The `src/`
-structure forces us to test on the installed version of the modules within
-`site-packages/` and not our local code. Even though these files are symlinked
-in most cases with the dev install, the calls and import references are the
-same. This ensures we are testing on what will be setup in the not-my machine.
 
 ---
 
