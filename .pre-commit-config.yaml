@@ -1,3 +1,4 @@
+exclude: ".+-nonewline.ini"
 repos:
   # Batch of helpful formatters and patterns
   - repo: https://github.com/pre-commit/pre-commit-hooks
