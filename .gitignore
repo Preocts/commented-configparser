@@ -1,0 +1,14 @@
+temp_*
+.env
+venv/
+*egg-info/
+.tox/
+.coverage
+.coverage.*
+coverage.xml
+coverage.json
+htmlcov/
+build/
+dist/
+__pycache__/
+.vscode/

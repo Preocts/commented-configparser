@@ -1,0 +1,145 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "commented-configparser"
+version = "0.0.1"
+requires-python = ">=3.7"
+description = "Custom ConfigParser class that preserves comments in file when writing"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [
+    { email = "preocts@preocts.com", name = "Preocts" }
+]
+maintainers = []
+keywords = []
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: Implementation :: CPython"
+]
+# Define dependencies directly
+dependencies = []
+
+# Optional use requirements.txt as input (generated from pip-tools pip-compile)
+# 20221003 - Does not presently support hashes
+# dynamic = ["dependencies"]
+# [tool.setuptools.dynamic]
+# dependencies = {file = ["requirements.txt"]}
+
+[project.optional-dependencies]
+dev = [
+    "pre-commit",
+    "black",
+    "mypy",
+    "flake8",
+    "flake8-builtins",
+    "flake8-pep585",
+]
+test = [
+    "pytest",
+    "pytest-randomly",
+    "coverage",
+    "tox"
+]
+
+[project.urls]
+homepage = "https://github.com/Preocts/commented-configparser"
+# documentation = ""
+# repository = ""
+# changelog = ""
+
+# CLI scripts if needed
+# [project.scripts]
+# python-src-example = "commented-configparser.sample:main"
+
+# [tool.setuptools.packages.find]
+# where = ["src"]  # ["."] by default
+# include = ["*"]  # ["*"] by default
+# exclude = ["tests"]  # empty by default
+# namespaces = true  # true by default
+
+[tool.setuptools.package-data]
+"commented-configparser" = ["py.typed"]
+
+[tool.mypy]
+check_untyped_defs = true
+disallow_any_generics = true
+disallow_incomplete_defs = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_incomplete_defs = false
+disallow_untyped_defs = false
+
+[tool.coverage.run]
+branch = true
+source = [
+    "tests",
+]
+source_pkgs = [
+    "commented-configparser",
+]
+
+[tool.coverage.paths]
+source = [
+    "src/",
+    "*/site-packages",
+]
+test = [
+    "tests/",
+    "*/tests",
+]
+
+[tool.coverage.report]
+exclude_lines =[
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "\\.\\.\\.",
+]
+
+# This is ignored by flake8, here in case they decide to add it in the future
+[tool.flake8]
+ignore = "W503,E203"
+max-line-length = 88
+
+[tool.tox]
+legacy_tox_ini = """
+[tox]
+envlist = py37,py38,py39,py310,py311,py312,coverage,mypy,pre-commit
+skip_missing_interpreters = true
+isolated_build = True
+
+[testenv]
+deps = .[test]
+commands =
+    coverage run -p -m pytest tests/
+
+[testenv:coverage]
+depends = py37,py38,py39,py310,py311,py312
+parallel_show_output = true
+commands =
+    python -m coverage combine
+    python -m coverage report -m --fail-under=50
+    python -m coverage json
+
+[testenv:mypy]
+deps =
+    mypy
+commands =
+    mypy -p commented-configparser
+
+[testenv:pre-commit]
+depends = coverage
+parallel_show_output = true
+skip_install = true
+deps = pre-commit
+commands = pre-commit run --all-files --show-diff-on-failure
+"""
