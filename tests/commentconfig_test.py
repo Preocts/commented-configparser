@@ -9,17 +9,18 @@ from commentedconfigparser.commentedconfigparser import CommentedConfigParser
     (
         ("# This is a comment", True),
         ("; This is a comment", True),
-        ("  ; This is a comment", True),
-        ("  # This is a comment", True),
+        ("  \t; This is a comment", True),
+        ("  \t# This is a comment", True),
         ("This is a comment", False),
-        ("  This is a comment", False),
-        ("", False),
+        ("  \tThis is a comment", False),
+        ("", True),
+        ("  \t", True),
     ),
 )
-def test_is_comment(line: str, expected: bool) -> None:
+def test_is_comment_or_empty(line: str, expected: bool) -> None:
     cc = CommentedConfigParser()
 
-    result = cc._is_comment(line)
+    result = cc._is_comment_or_empty(line)
 
     assert result is expected
 

@@ -42,8 +42,8 @@ class CommentedConfigParser(ConfigParser):
         content = Path(filepath).read_text()
 
         for content_line in content.split("\n"):
-            self._is_comment(content_line)
+            self._is_comment_or_empty(content_line)
 
-    def _is_comment(self, line: str) -> bool:
+    def _is_comment_or_empty(self, line: str) -> bool:
         """True if the line is a valid ini comment."""
-        return bool(COMMENT.search(line))
+        return bool(COMMENT.search(line)) or not bool(re.sub(r"\s*", "", line))
