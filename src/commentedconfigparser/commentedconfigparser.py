@@ -33,16 +33,10 @@ class CommentedConfigParser(ConfigParser):
     def read_string(self, string: str, source: str = "<string>") -> None:
         return super().read_string(string, source)
 
-    def _fileload(self, filepath: str) -> None:
-        """Load a file. Will replace any previously loaded file."""
+    def _fileload(self, filepath: str) -> str | None:
+        """Load a file if it exists."""
         path = Path(filepath)
-        if not path.exists():
-            return
-
-        content = Path(filepath).read_text()
-
-        for content_line in content.split("\n"):
-            self._is_comment_or_empty(content_line)
+        return path.read_text() if path.exists() else None
 
     def _is_comment_or_empty(self, line: str) -> bool:
         """True if the line is a valid ini comment."""

@@ -47,3 +47,20 @@ def test_regression_read_dict_loads_normally() -> None:
     cc.read_dict({"TEST": {"test": "pass"}})
 
     assert cc.get("TEST", "test") == "pass"
+
+
+def test_fileload() -> None:
+    cc = CommentedConfigParser()
+
+    result = cc._fileload("tests/withcomments.ini")
+
+    assert result
+    assert "[NEW SECTION]" in result
+
+
+def test_fileload_silently_fails() -> None:
+    cc = CommentedConfigParser()
+
+    result = cc._fileload("tests/notherefile.ini")
+
+    assert result is None
