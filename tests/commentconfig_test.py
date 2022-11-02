@@ -1,11 +1,10 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
 from commentedconfigparser.commentedconfigparser import CommentedConfigParser
-
-# import json
 
 CONFIG_W_COMMENTS = Path("tests/withcomments.ini").read_text()
 EXPECTED_MAP = {
@@ -16,6 +15,7 @@ EXPECTED_MAP = {
     "foo": [
         "# Make sure to add this when you need it",
     ],
+    "trace": [],
     "logging": [
         "; This is a comment as well",
         "# so we need to track all of them",
@@ -24,14 +24,16 @@ EXPECTED_MAP = {
     "[NEW SECTION]": [
         "# Another comment",
     ],
-    "@@footer": [
-        "",
-    ],
+    "multi-line": [],
+    "value01": [],
+    "value02": [],
+    "value03": [],
+    "closing": [""],
 }
 
 
 def test_assert_class_var_is_always_empty() -> None:
-    assert CommentedConfigParser._comment_map == {}
+    assert CommentedConfigParser._comment_map is None
 
 
 @pytest.mark.parametrize(
@@ -118,3 +120,31 @@ def test_fileload_silently_fails() -> None:
     result = cc._fileload("tests/notherefile.ini")
 
     assert result is None
+
+
+def test_map_comments() -> None:
+    cc = CommentedConfigParser()
+    expected = json.dumps(EXPECTED_MAP)
+
+    cc._map_comments("test", CONFIG_W_COMMENTS)
+    assert cc._comment_map
+    result = json.dumps(cc._comment_map["test"])
+
+    assert result == expected
+
+
+def test_init_map() -> None:
+    cc = CommentedConfigParser()
+
+    cc._init_map()
+
+    assert cc._comment_map == {}
+
+
+def test_init_map_does_not_reset_work() -> None:
+    cc = CommentedConfigParser()
+    cc._comment_map = {"test": {}}
+
+    cc._init_map()
+
+    assert cc._comment_map == {"test": {}}
