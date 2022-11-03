@@ -80,7 +80,10 @@ class CommentedConfigParser(ConfigParser):
                 comment_lines.clear()
                 section = self._get_key(line)
 
-        # Capture the last section
+        # Capture all trailing lines in comment_lines on exit of loop
         comment_map[section] = comment_lines.copy()
+
+        # Dischard any keys that have an empty value
+        comment_map = {key: value for key, value in comment_map.items() if value}
 
         self._comment_map[config_name] = comment_map  # type: ignore # Handled by init

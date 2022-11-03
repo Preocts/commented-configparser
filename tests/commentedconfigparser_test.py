@@ -8,26 +8,23 @@ from commentedconfigparser.commentedconfigparser import CommentedConfigParser
 
 CONFIG_W_COMMENTS = Path("tests/withcomments.ini").read_text()
 EXPECTED_MAP = {
-    "@@header": [],
+    "@@header": ["# Welcome to our config"],
     "[DEFAULT]": [
         "# This value has some meaning to someone",
     ],
     "foo": [
         "# Make sure to add this when you need it",
     ],
-    "trace": [],
     "logging": [
         "; This is a comment as well",
+        "",
         "# so we need to track all of them",
+        "",
         "    ; and many could be between things",
     ],
     "[NEW SECTION]": [
         "# Another comment",
     ],
-    "multi-line": [],
-    "value01": [],
-    "value02": [],
-    "value03": [],
     "closing": [""],
 }
 
