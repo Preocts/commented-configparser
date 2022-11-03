@@ -1,7 +1,4 @@
-"""
-Custom ConfigParser class that preserves comments when writing a loaded config out.
-
-"""
+"""Custom ConfigParser class that preserves comments when writing loaded config out."""
 from __future__ import annotations
 
 import os
@@ -15,6 +12,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from _typeshed import StrOrBytesPath
     from _typeshed import SupportsWrite
+
+__all__ = ["CommentedConfigParser"]
 
 COMMENT_PTN = re.compile(r"\s*[#|;]")
 KEY_PTN = re.compile("(.+?)[=|:]")
