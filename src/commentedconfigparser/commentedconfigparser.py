@@ -7,11 +7,14 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 from configparser import ConfigParser
-from os import PathLike
 from pathlib import Path
-from typing import Union
+from typing import TYPE_CHECKING
 
-StrOrBytesPath = Union[str, bytes, "PathLike[str]", "PathLike[bytes]"]
+
+if TYPE_CHECKING:
+    from _typeshed import StrOrBytesPath
+    from _typeshed import SupportsWrite
+
 COMMENT_PTN = re.compile(r"\s*[#|;]")
 KEY_PTN = re.compile("(.+?)[=|:]")
 
@@ -33,6 +36,11 @@ class CommentedConfigParser(ConfigParser):
 
     def read_string(self, string: str, source: str = "<string>") -> None:
         return super().read_string(string, source)
+
+    def write(
+        self, fp: SupportsWrite[str], space_around_delimiters: bool = True
+    ) -> None:
+        return super().write(fp, space_around_delimiters)
 
     def _fileload(self, filepath: str) -> str | None:
         """Load a file if it exists."""
