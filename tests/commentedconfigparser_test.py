@@ -7,7 +7,8 @@ from pathlib import Path
 import pytest
 from commentedconfigparser.commentedconfigparser import CommentedConfigParser
 
-CONFIG_W_COMMENTS = Path("tests/withcomments.ini").read_text()
+CONFIG_W_COMMENTS = "tests/withcomments.ini"
+CONFIG_W_COMMENTS_STR = Path("tests/withcomments.ini").read_text()
 EXPECTED_MAP = {
     "@@header": ["# Welcome to our config"],
     "[DEFAULT]": [
@@ -79,12 +80,29 @@ def test_get_line_key(line: str, expected: str) -> None:
     assert result == expected
 
 
-def test_regression_read_reads() -> None:
+def test_regression_read_loads_normally_list() -> None:
     cc = CommentedConfigParser()
 
-    read = cc.read(["tests/withcomments.ini", "notfoundatall.ini"])
+    read = cc.read([CONFIG_W_COMMENTS, "notfoundatall.ini"])
 
     assert len(read) == 1
+
+
+def test_regression_read_loads_normally_single_file() -> None:
+    cc = CommentedConfigParser()
+
+    read = cc.read(CONFIG_W_COMMENTS)
+
+    assert len(read) == 1
+
+
+def test_regression_read_file_normally() -> None:
+    cc = CommentedConfigParser()
+
+    with open(CONFIG_W_COMMENTS) as file:
+        cc.read_file(file)
+
+    assert cc.get("NEW SECTION", "closing") == "0"
 
 
 def test_regression_read_string_loads_normally() -> None:
@@ -135,8 +153,39 @@ def test_map_comments() -> None:
     cc = CommentedConfigParser()
     expected = json.dumps(EXPECTED_MAP)
 
-    cc._map_comments("test", CONFIG_W_COMMENTS)
+    cc._map_comments(CONFIG_W_COMMENTS_STR)
     assert cc._comment_map
+    result = json.dumps(cc._comment_map)
+
+    assert result == expected
+
+
+def test_read_file_captures_comments() -> None:
+    cc = CommentedConfigParser()
+    expected = json.dumps(EXPECTED_MAP)
+
+    with open(CONFIG_W_COMMENTS) as file:
+        cc.read_file(file)
+    result = json.dumps(cc._comment_map)
+
+    assert result == expected
+
+
+def test_read_captures_comments_single_file() -> None:
+    cc = CommentedConfigParser()
+    expected = json.dumps(EXPECTED_MAP)
+
+    cc.read(CONFIG_W_COMMENTS)
+    result = json.dumps(cc._comment_map)
+
+    assert result == expected
+
+
+def test_read_string_captures_comments() -> None:
+    cc = CommentedConfigParser()
+    expected = json.dumps(EXPECTED_MAP)
+
+    cc.read_string(CONFIG_W_COMMENTS_STR)
     result = json.dumps(cc._comment_map)
 
     assert result == expected

@@ -4,10 +4,10 @@ Custom ConfigParser class that preserves comments when writing a loaded config o
 """
 from __future__ import annotations
 
+import os
 import re
 from collections.abc import Iterable
 from configparser import ConfigParser
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 
@@ -29,24 +29,39 @@ class CommentedConfigParser(ConfigParser):
         filenames: StrOrBytesPath | Iterable[StrOrBytesPath],
         encoding: str | None = None,
     ) -> list[str]:
+
+        if isinstance(filenames, (str, bytes, os.PathLike)):
+            filenames = [filenames]
+
+        for filename in filenames:
+            content = self._fileload(filename, encoding)
+            self._map_comments(content)
+
         return super().read(filenames, encoding)
 
     def read_file(self, f: Iterable[str], source: str | None = None) -> None:
-        return super().read_file(f, source)
 
-    def read_string(self, string: str, source: str = "<string>") -> None:
-        return super().read_string(string, source)
+        content = [line for line in f]
+        self._map_comments("".join(content))
+
+        return super().read_file(content, source)
 
     def write(
         self, fp: SupportsWrite[str], space_around_delimiters: bool = True
     ) -> None:
         return super().write(fp, space_around_delimiters)
 
-    def _fileload(self, filepath: str) -> str | None:
+    def _fileload(
+        self,
+        filepath: StrOrBytesPath,
+        encoding: str | None = None,
+    ) -> str | None:
         """Load a file if it exists."""
-        # TODO: This will need to handle StrOrBytesPath and file-likes
-        path = Path(filepath)
-        return path.read_text() if path.exists() else None
+        try:
+            with open(filepath, encoding=encoding) as infile:
+                return infile.read()
+        except OSError:
+            return None
 
     def _is_comment_or_empty(self, line: str) -> bool:
         """True if the line is a valid ini comment."""
@@ -63,16 +78,17 @@ class CommentedConfigParser(ConfigParser):
         matches = KEY_PTN.match(line)
         return matches.group(1).strip() if matches else line.strip()
 
-    def _map_comments(self, config_name: str, content: str) -> None:
+    def _map_comments(self, content: str | None) -> None:
         """Map comments of config internally for restoration on write."""
         # The map holds comments that happen under the given key
-        # @@header is an arbatrary keys assigned to capture the
+        # @@header is an arbatrary key assigned to capture the
         # top of the file.
         section = "@@header"
+        content_lines = content.split("\n") if content is not None else []
         comment_lines: list[str] = []
         comment_map = self._comment_map if self._comment_map else {}
 
-        for line in content.split("\n"):
+        for line in content_lines:
             if self._is_comment_or_empty(line):
                 comment_lines.append(line)
 
