@@ -19,16 +19,38 @@ EXPECTED_MAP = {
     ],
     "logging": [
         "; This is a comment as well",
-        "",
-        "# so we need to track all of them",
-        "",
-        "    ; and many could be between things",
+        "    # so we need to track all of them",
+        "\t; and many could be between things",
     ],
     "[NEW SECTION]": [
         "# Another comment",
     ],
-    "closing": [""],
+    "closing": ["# Trailing comment"],
 }
+
+# This is how we expect the withcomments.ini to re-render
+# Use \t to render tabs. Will *not* match input file
+EXPECTED_STR = """\
+# Welcome to our config
+[DEFAULT]
+# This value has some meaning to someone
+foo=bar
+# Make sure to add this when you need it
+trace=false
+logging=true
+; This is a comment as well
+    # so we need to track all of them
+\t; and many could be between things
+
+[NEW SECTION]
+# Another comment
+multi-line=
+\tvalue01
+\tvalue02
+\tvalue03
+closing=0
+# Trailing comment
+"""
 
 
 def test_assert_class_var_is_always_empty() -> None:
@@ -44,14 +66,31 @@ def test_assert_class_var_is_always_empty() -> None:
         ("  \t# This is a comment", True),
         ("This is a comment", False),
         ("  \tThis is a comment", False),
-        ("", True),
-        ("  \t", True),
+        ("", False),
+        ("  \t", False),
     ),
 )
 def test_is_comment_or_empty(line: str, expected: bool) -> None:
     cc = CommentedConfigParser()
 
-    result = cc._is_comment_or_empty(line)
+    result = cc._is_comment(line)
+
+    assert result is expected
+
+
+@pytest.mark.parametrize(
+    ("line", "expected"),
+    (
+        ("  \tThis is a comment", False),
+        ("", True),
+        ("  \t", True),
+        ("  ", True),
+    ),
+)
+def test_is_empty(line: str, expected: bool) -> None:
+    cc = CommentedConfigParser()
+
+    result = cc._is_empty(line)
 
     assert result is expected
 
@@ -123,7 +162,7 @@ def test_regression_read_dict_loads_normally() -> None:
 
 def test_regression_write_normally() -> None:
     cc = CommentedConfigParser()
-    expected = "[TEST]\ntest=pass\n\n"
+    expected = "[TEST]\ntest=pass\n"
     cc.read_string(expected)
     mock_file = StringIO()
 
@@ -189,3 +228,18 @@ def test_read_string_captures_comments() -> None:
     result = json.dumps(cc._comment_map)
 
     assert result == expected
+
+
+def test_write_with_comments_single_file() -> None:
+    cc = CommentedConfigParser()
+    cc.read_string(CONFIG_W_COMMENTS_STR)
+    mock_file = StringIO()
+
+    cc.write(mock_file, space_around_delimiters=False)
+
+    print(EXPECTED_STR)
+    print("*" * 79)
+    print(mock_file.getvalue())
+    print("*" * 79)
+
+    assert mock_file.getvalue() == EXPECTED_STR

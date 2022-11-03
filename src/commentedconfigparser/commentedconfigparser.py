@@ -8,6 +8,7 @@ import os
 import re
 from collections.abc import Iterable
 from configparser import ConfigParser
+from io import StringIO
 from typing import TYPE_CHECKING
 
 
@@ -49,7 +50,12 @@ class CommentedConfigParser(ConfigParser):
     def write(
         self, fp: SupportsWrite[str], space_around_delimiters: bool = True
     ) -> None:
-        return super().write(fp, space_around_delimiters)
+        capture_output = StringIO()
+        super().write(capture_output, space_around_delimiters)
+
+        rendered_output = self._restore_comments(capture_output.getvalue())
+
+        fp.write(rendered_output)
 
     def _fileload(
         self,
@@ -63,9 +69,13 @@ class CommentedConfigParser(ConfigParser):
         except OSError:
             return None
 
-    def _is_comment_or_empty(self, line: str) -> bool:
+    def _is_comment(self, line: str) -> bool:
         """True if the line is a valid ini comment."""
-        return bool(COMMENT_PTN.search(line)) or not bool(re.sub(r"\s*", "", line))
+        return bool(COMMENT_PTN.search(line))
+
+    def _is_empty(self, line: str) -> bool:
+        """True if line is just whitesspace."""
+        return not bool(re.sub(r"\s*", "", line))
 
     def _get_key(self, line: str) -> str:
         """
@@ -89,10 +99,12 @@ class CommentedConfigParser(ConfigParser):
         comment_map = self._comment_map if self._comment_map else {}
 
         for line in content_lines:
-            if self._is_comment_or_empty(line):
+            if self._is_comment(line):
                 comment_lines.append(line)
 
-            else:
+            # We allow empty lines to be ignored giving the library
+            # control over general line spacing format.
+            elif not self._is_empty(line):
                 # Update the current section, clear, and start again
                 comment_map[section] = comment_lines.copy()
                 comment_lines.clear()
@@ -105,3 +117,20 @@ class CommentedConfigParser(ConfigParser):
         comment_map = {key: value for key, value in comment_map.items() if value}
 
         self._comment_map = comment_map
+
+    def _restore_comments(self, content: str) -> str:
+        """Restore comments from internal map."""
+        # Early exit if the config was never loaded with comments (from_dict/run-time)
+        if self._comment_map is None:
+            return content
+
+        # Apply the headers before parsing the config lines
+        rendered: list[str] = self._comment_map.get("@@header", [])
+
+        for line in content.splitlines():
+            # Order of reconstruction is config-line then any comments
+            key = self._get_key(line)
+            rendered.append(line)
+            rendered.extend(self._comment_map.get(key, []))
+
+        return "\n".join(rendered)
