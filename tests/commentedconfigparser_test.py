@@ -30,27 +30,7 @@ EXPECTED_MAP = {
 
 # This is how we expect the withcomments.ini to re-render
 # Use \t to render tabs. Will *not* match input file
-EXPECTED_STR = """\
-# Welcome to our config
-[DEFAULT]
-# This value has some meaning to someone
-foo=bar
-# Make sure to add this when you need it
-trace=false
-logging=true
-; This is a comment as well
-    # so we need to track all of them
-\t; and many could be between things
-
-[NEW SECTION]
-# Another comment
-multi-line=
-\tvalue01
-\tvalue02
-\tvalue03
-closing=0
-# Trailing comment
-"""
+EXPECTED_STR = Path("tests/expected.ini").read_text()
 
 
 def test_assert_class_var_is_always_empty() -> None:
