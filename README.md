@@ -5,7 +5,9 @@
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/Preocts/commented-configparser/main.svg)](https://results.pre-commit.ci/latest/github/Preocts/commented-configparser/main)
 [![Python tests](https://github.com/Preocts/commented-configparser/actions/workflows/python-tests.yml/badge.svg?branch=main)](https://github.com/Preocts/commented-configparser/actions/workflows/python-tests.yml)
 
-# commented-configparser
+# commented-configparser (WIP)
+
+Custom ConfigParser class that preserves comments in file when writing
 
 ---
 
