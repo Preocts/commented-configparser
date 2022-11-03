@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from io import StringIO
 from pathlib import Path
 
 import pytest
@@ -100,6 +101,17 @@ def test_regression_read_dict_loads_normally() -> None:
     cc.read_dict({"TEST": {"test": "pass"}})
 
     assert cc.get("TEST", "test") == "pass"
+
+
+def test_regression_write_normally() -> None:
+    cc = CommentedConfigParser()
+    expected = "[TEST]\ntest=pass\n\n"
+    cc.read_string(expected)
+    mock_file = StringIO()
+
+    cc.write(mock_file, space_around_delimiters=False)
+
+    assert mock_file.getvalue() == expected
 
 
 def test_fileload() -> None:
