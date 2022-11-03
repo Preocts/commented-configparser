@@ -125,23 +125,6 @@ def test_map_comments() -> None:
 
     cc._map_comments("test", CONFIG_W_COMMENTS)
     assert cc._comment_map
-    result = json.dumps(cc._comment_map["test"])
+    result = json.dumps(cc._comment_map)
 
     assert result == expected
-
-
-def test_init_map() -> None:
-    cc = CommentedConfigParser()
-
-    cc._init_map()
-
-    assert cc._comment_map == {}
-
-
-def test_init_map_does_not_reset_work() -> None:
-    cc = CommentedConfigParser()
-    cc._comment_map = {"test": {}}
-
-    cc._init_map()
-
-    assert cc._comment_map == {"test": {}}

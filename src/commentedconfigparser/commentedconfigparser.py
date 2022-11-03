@@ -19,7 +19,7 @@ KEY_PTN = re.compile("(.+?)[=|:]")
 class CommentedConfigParser(ConfigParser):
     """Custom ConfigParser that preserves comments when writing a loaded config out."""
 
-    _comment_map: dict[str, dict[str, list[str]]] | None = None
+    _comment_map: dict[str, list[str]] | None = None
 
     def read(
         self,
@@ -55,20 +55,14 @@ class CommentedConfigParser(ConfigParser):
         matches = KEY_PTN.match(line)
         return matches.group(1).strip() if matches else line.strip()
 
-    def _init_map(self) -> None:
-        """Setup map."""
-        if self._comment_map is None:
-            self._comment_map = {}
-
     def _map_comments(self, config_name: str, content: str) -> None:
         """Map comments of config internally for restoration on write."""
-        self._init_map()
         # The map holds comments that happen under the given key
         # @@header is an arbatrary keys assigned to capture the
         # top of the file.
         section = "@@header"
         comment_lines: list[str] = []
-        comment_map: dict[str, list[str]] = {}
+        comment_map = self._comment_map if self._comment_map else {}
 
         for line in content.split("\n"):
             if self._is_comment_or_empty(line):
@@ -86,4 +80,4 @@ class CommentedConfigParser(ConfigParser):
         # Dischard any keys that have an empty value
         comment_map = {key: value for key, value in comment_map.items() if value}
 
-        self._comment_map[config_name] = comment_map  # type: ignore # Handled by init
+        self._comment_map = comment_map
