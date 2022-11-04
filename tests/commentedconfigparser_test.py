@@ -10,22 +10,35 @@ from commentedconfigparser.commentedconfigparser import CommentedConfigParser
 CONFIG_W_COMMENTS = "tests/withcomments.ini"
 CONFIG_W_COMMENTS_STR = Path("tests/withcomments.ini").read_text()
 EXPECTED_MAP = {
-    "@@header": ["# Welcome to our config"],
-    "[DEFAULT]": [
-        "# This value has some meaning to someone",
-    ],
-    "foo": [
-        "# Make sure to add this when you need it",
-    ],
-    "logging": [
-        "; This is a comment as well",
-        "    # so we need to track all of them",
-        "\t; and many could be between things",
-    ],
-    "[NEW SECTION]": [
-        "# Another comment",
-    ],
-    "closing": ["# Trailing comment"],
+    "@@header": {
+        "@@header": [
+            "# Welcome to our config",
+        ],
+    },
+    "[DEFAULT]": {
+        "@@header": [
+            "# This value has some meaning to someone",
+        ],
+        "foo": [
+            "# Make sure to add this when you need it",
+        ],
+        "logging": [
+            "; This is a comment as well",
+            "    # so we need to track all of them",
+            "\t; and many could be between things",
+        ],
+    },
+    "[NEW SECTION]": {
+        "@@header": [
+            "# Another comment",
+        ],
+        "foo": [
+            "# Unique foo",
+        ],
+        "closing": [
+            "# Trailing comment",
+        ],
+    },
 }
 
 # This is how we expect the withcomments.ini to re-render
@@ -50,7 +63,7 @@ def test_assert_class_var_is_always_empty() -> None:
         ("  \t", False),
     ),
 )
-def test_is_comment_or_empty(line: str, expected: bool) -> None:
+def test_is_comment(line: str, expected: bool) -> None:
     cc = CommentedConfigParser()
 
     result = cc._is_comment(line)
@@ -71,6 +84,24 @@ def test_is_empty(line: str, expected: bool) -> None:
     cc = CommentedConfigParser()
 
     result = cc._is_empty(line)
+
+    assert result is expected
+
+
+@pytest.mark.parametrize(
+    ("line", "expected"),
+    (
+        ("\t[SECTION]", True),
+        ("\t[SECTION", False),
+        ("    [SECTION]", True),
+        ("SECTION]", False),
+        ("", False),
+    ),
+)
+def test_is_section(line: str, expected: bool) -> None:
+    cc = CommentedConfigParser()
+
+    result = cc._is_section(line)
 
     assert result is expected
 
@@ -217,9 +248,28 @@ def test_write_with_comments_single_file() -> None:
 
     cc.write(mock_file, space_around_delimiters=False)
 
-    print(EXPECTED_STR)
-    print("*" * 79)
-    print(mock_file.getvalue())
-    print("*" * 79)
-
     assert mock_file.getvalue() == EXPECTED_STR
+
+
+def test_write_with_no_comments() -> None:
+    cc = CommentedConfigParser()
+    expected = "[TEST]\ntest=pass\n\n"
+    cc.read_dict({"TEST": {"test": "pass"}})
+    mock_file = StringIO()
+
+    cc.write(mock_file, space_around_delimiters=False)
+
+    assert mock_file.getvalue() == expected
+
+
+@pytest.mark.skip(reason="WIP")
+def test_write_with_comments_single_file_remove_key() -> None:
+    cc = CommentedConfigParser()
+    mod_expected = EXPECTED_STR.replace("foo=bar\n", "")
+    cc.read_string(CONFIG_W_COMMENTS_STR)
+    mock_file = StringIO()
+
+    cc.remove_option("DEFAULT", "foo")
+    cc.write(mock_file, space_around_delimiters=False)
+
+    assert mock_file.getvalue() == mod_expected

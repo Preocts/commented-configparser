@@ -15,14 +15,15 @@ if TYPE_CHECKING:
 
 __all__ = ["CommentedConfigParser"]
 
-COMMENT_PTN = re.compile(r"\s*[#|;]")
-KEY_PTN = re.compile("(.+?)[=|:]")
+COMMENT_PTN = re.compile(r"^\s*[#|;]")
+KEY_PTN = re.compile("^(.+?)[=|:]")
+SECTION_PTN = re.compile(r"^\s*\[.+\]\s*$")
 
 
 class CommentedConfigParser(ConfigParser):
     """Custom ConfigParser that preserves comments when writing a loaded config out."""
 
-    _comment_map: dict[str, list[str]] | None = None
+    _comment_map: dict[str, dict[str, list[str]]] | None = None
 
     def read(
         self,
@@ -76,6 +77,10 @@ class CommentedConfigParser(ConfigParser):
         """True if line is just whitesspace."""
         return not bool(re.sub(r"\s*", "", line))
 
+    def _is_section(self, line: str) -> bool:
+        """True if line is a section."""
+        return bool(SECTION_PTN.search(line))
+
     def _get_key(self, line: str) -> str:
         """
         Return the key of a line trimmed of leading/trailing whitespace.
@@ -90,14 +95,19 @@ class CommentedConfigParser(ConfigParser):
     def _map_comments(self, content: str | None) -> None:
         """Map comments of config internally for restoration on write."""
         # The map holds comments that happen under the given key
-        # @@header is an arbatrary key assigned to capture the
-        # top of the file.
+        # @@header is an arbatrary section and key assigned to
+        # capture the top of a file or section.
         section = "@@header"
+        key = "@@header"
+
         content_lines = content.split("\n") if content is not None else []
         comment_lines: list[str] = []
         comment_map = self._comment_map if self._comment_map else {}
 
         for line in content_lines:
+            # Define the section or use existing
+            comment_map[section] = comment_map.get(section, {})
+
             if self._is_comment(line):
                 comment_lines.append(line)
 
@@ -105,17 +115,26 @@ class CommentedConfigParser(ConfigParser):
             # control over general line spacing format.
             elif not self._is_empty(line):
                 # Update the current section, clear, and start again
-                comment_map[section] = comment_lines.copy()
+                comment_map[section][key] = comment_lines.copy()
                 comment_lines.clear()
-                section = self._get_key(line)
+
+                # Figure out if we have a key or a new section
+                if self._is_section(line):
+                    # TODO: Probably should rename this method. _get_token() ?
+                    section = self._get_key(line)
+                    key = "@@header"
+                else:
+                    key = self._get_key(line)
 
         # Capture all trailing lines in comment_lines on exit of loop
-        comment_map[section] = comment_lines.copy()
+        comment_map[section][key] = comment_lines.copy()
 
-        # Dischard any keys that have an empty value
-        comment_map = {key: value for key, value in comment_map.items() if value}
+        # Discard any keys that have an empty value
+        clean_map: dict[str, dict[str, list[str]]] = {}
+        for key, value in comment_map.items():
+            clean_map[key] = {k: v for k, v in value.items() if v}
 
-        self._comment_map = comment_map
+        self._comment_map = clean_map
 
     def _restore_comments(self, content: str) -> str:
         """Restore comments from internal map."""
@@ -123,13 +142,21 @@ class CommentedConfigParser(ConfigParser):
         if self._comment_map is None:
             return content
 
+        section = "@@header"
+        key = "@@header"
         # Apply the headers before parsing the config lines
-        rendered: list[str] = self._comment_map.get("@@header", [])
+        rendered: list[str] = self._comment_map[section].get(key, [])
 
         for line in content.splitlines():
             # Order of reconstruction is config-line then any comments
-            key = self._get_key(line)
             rendered.append(line)
-            rendered.extend(self._comment_map.get(key, []))
+
+            if self._is_section(line):
+                section = self._get_key(line)
+                key = "@@header"
+            else:
+                key = self._get_key(line)
+
+            rendered.extend(self._comment_map.get(section, {}).get(key, []))
 
         return "\n".join(rendered)
