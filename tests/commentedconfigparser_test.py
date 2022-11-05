@@ -265,20 +265,51 @@ def test_write_with_no_comments() -> None:
     assert mock_file.getvalue() == expected
 
 
+def test_merge_deleted_keys_no_map() -> None:
+    cc = CommentedConfigParser()
+
+    cc._merge_deleted_keys()
+
+    assert True  # The goal here is no KeyErrors raised looking for @@header
+
+
 def test_merge_deleted_keys() -> None:
     cc = CommentedConfigParser()
     cc.read_dict({"TEST": {}})
-    cc._comment_map = {"[TEST]": {"@@header": [], "test": ["# Test comment"]}}
+    cc._comment_map = {
+        "@@header": {
+            "@@header": [],
+        },
+        "[TEST]": {
+            "@@header": [],
+            "test": [
+                "# Test comment",
+            ],
+        },
+    }
+    expected = {
+        "@@header": {
+            "@@header": [],
+        },
+        "[TEST]": {
+            "@@header": [
+                "# Test comment",
+            ],
+        },
+    }
 
-    cc._merge_deleted_keys("[TEST]")
+    cc._merge_deleted_keys()
 
-    assert cc._comment_map == {"[TEST]": {"@@header": ["# Test comment"]}}
+    assert cc._comment_map == expected
 
 
 def test_merge_multiple_deleted_keys_retain_order() -> None:
     cc = CommentedConfigParser()
     cc.read_dict({"TEST": {"foo": "bar"}})
     cc._comment_map = {
+        "@@header": {
+            "@@header": [],
+        },
         "[TEST]": {
             "@@header": [],
             "foo": [
@@ -295,6 +326,9 @@ def test_merge_multiple_deleted_keys_retain_order() -> None:
         },
     }
     expected = {
+        "@@header": {
+            "@@header": [],
+        },
         "[TEST]": {
             "@@header": [],
             "foo": [
@@ -307,7 +341,7 @@ def test_merge_multiple_deleted_keys_retain_order() -> None:
         },
     }
 
-    cc._merge_deleted_keys("[TEST]")
+    cc._merge_deleted_keys()
 
     assert cc._comment_map == expected
 
@@ -330,3 +364,42 @@ def test_restore_comments_no_comments() -> None:
     result = cc._restore_comments("This is only a test")
 
     assert result == "This is only a test"
+
+
+def test_merge_deleted_sections() -> None:
+    cc = CommentedConfigParser()
+    cc.read_dict({})
+    cc._comment_map = {
+        "@@header": {
+            "@@header": [],
+        },
+        "[TEST]": {
+            "@@header": [],
+            "foo": [
+                "# This is foo's comment",
+            ],
+            "test": [
+                "# Test comment line 1",
+                "# Test comment line 2",
+            ],
+            "removed": [
+                "# Test comment line 3",
+                "# Test comment line 4",
+            ],
+        },
+    }
+    expected = {
+        "@@header": {
+            "@@header": [
+                "# This is foo's comment",
+                "# Test comment line 1",
+                "# Test comment line 2",
+                "# Test comment line 3",
+                "# Test comment line 4",
+            ],
+        },
+    }
+
+    cc._merge_deleted_keys()
+
+    assert cc._comment_map == expected
