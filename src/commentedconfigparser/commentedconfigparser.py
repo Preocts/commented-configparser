@@ -17,7 +17,7 @@ __all__ = ["CommentedConfigParser"]
 
 COMMENT_PTN = re.compile(r"^\s*[#|;]")
 KEY_PTN = re.compile("^(.+?)[=|:]")
-SECTION_PTN = re.compile(r"^\s*\[.+\]\s*$")
+SECTION_PTN = re.compile(r"^\s*\[(.+)\]\s*$")
 
 
 class CommentedConfigParser(ConfigParser):
@@ -50,8 +50,15 @@ class CommentedConfigParser(ConfigParser):
     def write(
         self, fp: SupportsWrite[str], space_around_delimiters: bool = True
     ) -> None:
+        # Early exit if the config was never loaded with comments (from_dict/run-time)
+        if self._comment_map is None:
+            return super().write(fp, space_around_delimiters)
+
         capture_output = StringIO()
         super().write(capture_output, space_around_delimiters)
+
+        for section in self._comment_map.keys():
+            self._merge_deleted_keys(section)
 
         rendered_output = self._restore_comments(capture_output.getvalue())
 
@@ -133,8 +140,8 @@ class CommentedConfigParser(ConfigParser):
 
     def _restore_comments(self, content: str) -> str:
         """Restore comments from internal map."""
-        # Early exit if the config was never loaded with comments (from_dict/run-time)
         if self._comment_map is None:
+            # This should never be needed
             return content
 
         section = "@@header"
@@ -155,3 +162,30 @@ class CommentedConfigParser(ConfigParser):
             rendered.extend(self._comment_map.get(section, {}).get(key, []))
 
         return "\n".join(rendered)
+
+    def _merge_deleted_keys(self, section: str) -> None:
+        """
+        Finds and merges comments of deleted key up the comment_map tree.
+
+        NOTE: Will not merge higher than "@@header". Deleted sections are
+        not currently handled.
+        """
+        match = SECTION_PTN.match(section)
+
+        # We have nothing to do if no comments, no match, or section is new
+        if (
+            self._comment_map is None
+            or match is None
+            or section not in self._comment_map
+        ):
+            return
+        config_keys = list(self[match.group(1)].keys())
+        mapped_keys = list(self._comment_map[section])[::-1]
+
+        orphaned_comments: list[str] = []
+        for key in mapped_keys:
+            if key != "@@header" and key not in config_keys:
+                orphaned_comments.extend(self._comment_map[section].pop(key))
+            else:
+                self._comment_map[section][key].extend(orphaned_comments)
+                orphaned_comments.clear()

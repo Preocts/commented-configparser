@@ -265,21 +265,19 @@ def test_write_with_no_comments() -> None:
     assert mock_file.getvalue() == expected
 
 
-# @pytest.mark.skip(reason="WIP")
-# def test_merge_deleted_keys() -> None:
-#     cc = CommentedConfigParser()
-#     cc.read_dict({"TEST": {"test": "pass"}})
-#     cc._comment_map = {"[TEST]": {"@@header": [], "test": ["# Test comment"]}}
+def test_merge_deleted_keys() -> None:
+    cc = CommentedConfigParser()
+    cc.read_dict({"TEST": {}})
+    cc._comment_map = {"[TEST]": {"@@header": [], "test": ["# Test comment"]}}
 
-#     cc._merge_deleted_keys("[TEST]")
+    cc._merge_deleted_keys("[TEST]")
 
-#     assert cc._comment_map == {"[TEST]": {"@@header": ["# Test comment"]}}
+    assert cc._comment_map == {"[TEST]": {"@@header": ["# Test comment"]}}
 
 
-@pytest.mark.skip(reason="WIP")
 def test_write_with_comments_single_file_remove_key() -> None:
     cc = CommentedConfigParser()
-    mod_expected = EXPECTED_STR.replace("foo=bar\n", "")
+    mod_expected = EXPECTED_STR.replace("foo=bar\n", "", 1)
     cc.read_string(CONFIG_W_COMMENTS_STR)
     mock_file = StringIO()
 
