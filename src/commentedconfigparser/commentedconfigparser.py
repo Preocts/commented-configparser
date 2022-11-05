@@ -184,8 +184,14 @@ class CommentedConfigParser(ConfigParser):
 
         orphaned_comments: list[str] = []
         for key in mapped_keys:
+
+            # Key no longer exists, gather comments and loop upward
             if key != "@@header" and key not in config_keys:
                 orphaned_comments.extend(self._comment_map[section].pop(key))
+
             else:
+                # Drop everything in the next key that exists
+                # @@header always exists
+                # TODO: comments will be in reverse order, handle that
                 self._comment_map[section][key].extend(orphaned_comments)
                 orphaned_comments.clear()
