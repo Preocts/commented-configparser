@@ -285,3 +285,11 @@ def test_write_with_comments_single_file_remove_key() -> None:
     cc.write(mock_file, space_around_delimiters=False)
 
     assert mock_file.getvalue() == mod_expected
+
+
+def test_restore_comments_no_comments() -> None:
+    cc = CommentedConfigParser()
+
+    result = cc._restore_comments("This is only a test")
+
+    assert result == "This is only a test"
