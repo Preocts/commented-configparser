@@ -129,12 +129,7 @@ class CommentedConfigParser(ConfigParser):
         # Capture all trailing lines in comment_lines on exit of loop
         comment_map[section][key] = comment_lines.copy()
 
-        # Discard any keys that have an empty value
-        clean_map: dict[str, dict[str, list[str]]] = {}
-        for key, value in comment_map.items():
-            clean_map[key] = {k: v for k, v in value.items() if v}
-
-        self._comment_map = clean_map
+        self._comment_map = comment_map
 
     def _restore_comments(self, content: str) -> str:
         """Restore comments from internal map."""

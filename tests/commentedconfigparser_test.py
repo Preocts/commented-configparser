@@ -22,6 +22,7 @@ EXPECTED_MAP = {
         "foo": [
             "# Make sure to add this when you need it",
         ],
+        "trace": [],
         "logging": [
             "; This is a comment as well",
             "    # so we need to track all of them",
@@ -29,12 +30,14 @@ EXPECTED_MAP = {
         ],
     },
     "[NEW SECTION]": {
-        "@@header": [
-            "# Another comment",
-        ],
+        "@@header": [],
         "foo": [
             "# Unique foo",
         ],
+        "multi-line": [],
+        "value01": [],
+        "value02": [],
+        "value03": [],
         "closing": [
             "# Trailing comment",
         ],
@@ -260,6 +263,17 @@ def test_write_with_no_comments() -> None:
     cc.write(mock_file, space_around_delimiters=False)
 
     assert mock_file.getvalue() == expected
+
+
+# @pytest.mark.skip(reason="WIP")
+# def test_merge_deleted_keys() -> None:
+#     cc = CommentedConfigParser()
+#     cc.read_dict({"TEST": {"test": "pass"}})
+#     cc._comment_map = {"[TEST]": {"@@header": [], "test": ["# Test comment"]}}
+
+#     cc._merge_deleted_keys("[TEST]")
+
+#     assert cc._comment_map == {"[TEST]": {"@@header": ["# Test comment"]}}
 
 
 @pytest.mark.skip(reason="WIP")
