@@ -17,7 +17,7 @@ __all__ = ["CommentedConfigParser"]
 
 COMMENT_PTN = re.compile(r"^\s*[#|;]")
 KEY_PTN = re.compile("^(.+?)[=|:]")
-SECTION_PTN = re.compile(r"^\s*\[.+\]\s*$")
+SECTION_PTN = re.compile(r"^\s*\[(.+)\]\s*$")
 
 
 class CommentedConfigParser(ConfigParser):
@@ -50,8 +50,14 @@ class CommentedConfigParser(ConfigParser):
     def write(
         self, fp: SupportsWrite[str], space_around_delimiters: bool = True
     ) -> None:
+        # Early exit if the config was never loaded with comments (from_dict/run-time)
+        if self._comment_map is None:
+            return super().write(fp, space_around_delimiters)
+
         capture_output = StringIO()
         super().write(capture_output, space_around_delimiters)
+
+        self._merge_deleted_keys()
 
         rendered_output = self._restore_comments(capture_output.getvalue())
 
@@ -129,17 +135,12 @@ class CommentedConfigParser(ConfigParser):
         # Capture all trailing lines in comment_lines on exit of loop
         comment_map[section][key] = comment_lines.copy()
 
-        # Discard any keys that have an empty value
-        clean_map: dict[str, dict[str, list[str]]] = {}
-        for key, value in comment_map.items():
-            clean_map[key] = {k: v for k, v in value.items() if v}
-
-        self._comment_map = clean_map
+        self._comment_map = comment_map
 
     def _restore_comments(self, content: str) -> str:
         """Restore comments from internal map."""
-        # Early exit if the config was never loaded with comments (from_dict/run-time)
         if self._comment_map is None:
+            # This should never be needed
             return content
 
         section = "@@header"
@@ -160,3 +161,39 @@ class CommentedConfigParser(ConfigParser):
             rendered.extend(self._comment_map.get(section, {}).get(key, []))
 
         return "\n".join(rendered)
+
+    def _merge_deleted_keys(self) -> None:
+        """Find and merges comments of deleted keys up the comment_map tree."""
+        if self._comment_map is None:
+            return
+
+        orphaned_comments: list[str] = []
+        # Walk the sections and keys backward so we merge 'up'.
+        for section in list(self._comment_map.keys())[::-1]:
+            section_mch = SECTION_PTN.match(section)
+            if section_mch is None:
+                # Strange that we have a section value that isn't a valid section
+                continue
+
+            for key in list(self._comment_map[section])[::-1]:
+
+                # Key no longer exists, gather comments and loop upward
+                if key != "@@header" and not self.has_option(section_mch.group(1), key):
+
+                    # Comments need to be stored in reverse order to avoid
+                    # needing to insert into front of list
+                    orphaned_comments.extend(self._comment_map[section].pop(key)[::-1])
+
+                elif section_mch.group(1) in self.keys():
+                    # Drop everything in the next key that exists
+                    # If the section is gone carry all comments up to bottom of next
+                    # Reverve the order as they were added in reverse
+                    self._comment_map[section][key].extend(orphaned_comments[::-1])
+                    orphaned_comments.clear()
+
+            # Remove sections that should now be empty
+            if not section_mch.group(1) in self.keys():
+                self._comment_map.pop(section)
+
+        # All remaining orphans moved to the top of the file
+        self._comment_map["@@header"]["@@header"].extend(orphaned_comments[::-1])

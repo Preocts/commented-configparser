@@ -22,6 +22,7 @@ EXPECTED_MAP = {
         "foo": [
             "# Make sure to add this when you need it",
         ],
+        "trace": [],
         "logging": [
             "; This is a comment as well",
             "    # so we need to track all of them",
@@ -29,12 +30,14 @@ EXPECTED_MAP = {
         ],
     },
     "[NEW SECTION]": {
-        "@@header": [
-            "# Another comment",
-        ],
+        "@@header": [],
         "foo": [
             "# Unique foo",
         ],
+        "multi-line": [],
+        "value01": [],
+        "value02": [],
+        "value03": [],
         "closing": [
             "# Trailing comment",
         ],
@@ -262,10 +265,90 @@ def test_write_with_no_comments() -> None:
     assert mock_file.getvalue() == expected
 
 
-@pytest.mark.skip(reason="WIP")
+def test_merge_deleted_keys_no_map() -> None:
+    cc = CommentedConfigParser()
+
+    cc._merge_deleted_keys()
+
+    assert True  # The goal here is no KeyErrors raised looking for @@header
+
+
+def test_merge_deleted_keys() -> None:
+    cc = CommentedConfigParser()
+    cc.read_dict({"TEST": {}})
+    cc._comment_map = {
+        "@@header": {
+            "@@header": [],
+        },
+        "[TEST]": {
+            "@@header": [],
+            "test": [
+                "# Test comment",
+            ],
+        },
+    }
+    expected = {
+        "@@header": {
+            "@@header": [],
+        },
+        "[TEST]": {
+            "@@header": [
+                "# Test comment",
+            ],
+        },
+    }
+
+    cc._merge_deleted_keys()
+
+    assert cc._comment_map == expected
+
+
+def test_merge_multiple_deleted_keys_retain_order() -> None:
+    cc = CommentedConfigParser()
+    cc.read_dict({"TEST": {"foo": "bar"}})
+    cc._comment_map = {
+        "@@header": {
+            "@@header": [],
+        },
+        "[TEST]": {
+            "@@header": [],
+            "foo": [
+                "# This is foo's comment",
+            ],
+            "test": [
+                "# Test comment line 1",
+                "# Test comment line 2",
+            ],
+            "removed": [
+                "# Test comment line 3",
+                "# Test comment line 4",
+            ],
+        },
+    }
+    expected = {
+        "@@header": {
+            "@@header": [],
+        },
+        "[TEST]": {
+            "@@header": [],
+            "foo": [
+                "# This is foo's comment",
+                "# Test comment line 1",
+                "# Test comment line 2",
+                "# Test comment line 3",
+                "# Test comment line 4",
+            ],
+        },
+    }
+
+    cc._merge_deleted_keys()
+
+    assert cc._comment_map == expected
+
+
 def test_write_with_comments_single_file_remove_key() -> None:
     cc = CommentedConfigParser()
-    mod_expected = EXPECTED_STR.replace("foo=bar\n", "")
+    mod_expected = EXPECTED_STR.replace("foo=bar\n", "", 1)
     cc.read_string(CONFIG_W_COMMENTS_STR)
     mock_file = StringIO()
 
@@ -273,3 +356,50 @@ def test_write_with_comments_single_file_remove_key() -> None:
     cc.write(mock_file, space_around_delimiters=False)
 
     assert mock_file.getvalue() == mod_expected
+
+
+def test_restore_comments_no_comments() -> None:
+    cc = CommentedConfigParser()
+
+    result = cc._restore_comments("This is only a test")
+
+    assert result == "This is only a test"
+
+
+def test_merge_deleted_sections() -> None:
+    cc = CommentedConfigParser()
+    cc.read_dict({})
+    cc._comment_map = {
+        "@@header": {
+            "@@header": [],
+        },
+        "[TEST]": {
+            "@@header": [],
+            "foo": [
+                "# This is foo's comment",
+            ],
+            "test": [
+                "# Test comment line 1",
+                "# Test comment line 2",
+            ],
+            "removed": [
+                "# Test comment line 3",
+                "# Test comment line 4",
+            ],
+        },
+    }
+    expected = {
+        "@@header": {
+            "@@header": [
+                "# This is foo's comment",
+                "# Test comment line 1",
+                "# Test comment line 2",
+                "# Test comment line 3",
+                "# Test comment line 4",
+            ],
+        },
+    }
+
+    cc._merge_deleted_keys()
+
+    assert cc._comment_map == expected
