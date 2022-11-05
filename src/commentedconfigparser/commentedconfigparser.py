@@ -164,12 +164,7 @@ class CommentedConfigParser(ConfigParser):
         return "\n".join(rendered)
 
     def _merge_deleted_keys(self, section: str) -> None:
-        """
-        Finds and merges comments of deleted key up the comment_map tree.
-
-        NOTE: Will not merge higher than "@@header". Deleted sections are
-        not currently handled.
-        """
+        """Find and merges comments of deleted key up the comment_map tree."""
         match = SECTION_PTN.match(section)
 
         # We have nothing to do if no comments, no match, or section is new
@@ -179,19 +174,21 @@ class CommentedConfigParser(ConfigParser):
             or section not in self._comment_map
         ):
             return
-        config_keys = list(self[match.group(1)].keys())
-        mapped_keys = list(self._comment_map[section])[::-1]
 
         orphaned_comments: list[str] = []
-        for key in mapped_keys:
+        # Walk the keys backward so we merge 'up'.
+        for key in list(self._comment_map[section])[::-1]:
 
             # Key no longer exists, gather comments and loop upward
-            if key != "@@header" and key not in config_keys:
-                orphaned_comments.extend(self._comment_map[section].pop(key))
+            if key != "@@header" and not self.has_option(match.group(1), key):
+
+                # Comments need to be stored in reverse order to avoid
+                # needing to insert into front of list
+                orphaned_comments.extend(self._comment_map[section].pop(key)[::-1])
 
             else:
                 # Drop everything in the next key that exists
                 # @@header always exists
-                # TODO: comments will be in reverse order, handle that
-                self._comment_map[section][key].extend(orphaned_comments)
+                # Reverve the order as they were added in reverse
+                self._comment_map[section][key].extend(orphaned_comments[::-1])
                 orphaned_comments.clear()

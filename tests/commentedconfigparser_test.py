@@ -275,6 +275,43 @@ def test_merge_deleted_keys() -> None:
     assert cc._comment_map == {"[TEST]": {"@@header": ["# Test comment"]}}
 
 
+def test_merge_multiple_deleted_keys_retain_order() -> None:
+    cc = CommentedConfigParser()
+    cc.read_dict({"TEST": {"foo": "bar"}})
+    cc._comment_map = {
+        "[TEST]": {
+            "@@header": [],
+            "foo": [
+                "# This is foo's comment",
+            ],
+            "test": [
+                "# Test comment line 1",
+                "# Test comment line 2",
+            ],
+            "removed": [
+                "# Test comment line 3",
+                "# Test comment line 4",
+            ],
+        },
+    }
+    expected = {
+        "[TEST]": {
+            "@@header": [],
+            "foo": [
+                "# This is foo's comment",
+                "# Test comment line 1",
+                "# Test comment line 2",
+                "# Test comment line 3",
+                "# Test comment line 4",
+            ],
+        },
+    }
+
+    cc._merge_deleted_keys("[TEST]")
+
+    assert cc._comment_map == expected
+
+
 def test_write_with_comments_single_file_remove_key() -> None:
     cc = CommentedConfigParser()
     mod_expected = EXPECTED_STR.replace("foo=bar\n", "", 1)
