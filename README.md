@@ -15,7 +15,11 @@ This library gives you a custom class of the standard library's `configparser.Co
 
 ## Install via pip
 
-From pypi: TBD
+From pypi:
+
+```bash
+python -m pip install commented-configparser
+```
 
 From github:
 
