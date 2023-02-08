@@ -30,7 +30,6 @@ class CommentedConfigParser(ConfigParser):
         filenames: StrOrBytesPath | Iterable[StrOrBytesPath],
         encoding: str | None = None,
     ) -> list[str]:
-
         if isinstance(filenames, (str, bytes, os.PathLike)):
             filenames = [filenames]
 
@@ -41,7 +40,6 @@ class CommentedConfigParser(ConfigParser):
         return super().read(filenames, encoding)
 
     def read_file(self, f: Iterable[str], source: str | None = None) -> None:
-
         content = [line for line in f]
         self._map_comments("".join(content))
 
@@ -176,10 +174,8 @@ class CommentedConfigParser(ConfigParser):
                 continue
 
             for key in list(self._comment_map[section])[::-1]:
-
                 # Key no longer exists, gather comments and loop upward
                 if key != "@@header" and not self.has_option(section_mch.group(1), key):
-
                     # Comments need to be stored in reverse order to avoid
                     # needing to insert into front of list
                     orphaned_comments.extend(self._comment_map[section].pop(key)[::-1])
