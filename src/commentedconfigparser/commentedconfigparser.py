@@ -25,6 +25,9 @@ class CommentedConfigParser(ConfigParser):
 
     _comment_map: dict[str, dict[str, list[str]]] | None = None
 
+    def optionxform(self, optionstr):
+        return optionstr
+
     def read(
         self,
         filenames: StrOrBytesPath | Iterable[StrOrBytesPath],
@@ -128,7 +131,7 @@ class CommentedConfigParser(ConfigParser):
                     section = self._get_key(line)
                     key = "@@header"
                 else:
-                    key = self._get_key(line)
+                    key = self.optionxform(self._get_key(line))
 
         # Capture all trailing lines in comment_lines on exit of loop
         comment_map[section][key] = comment_lines.copy()
