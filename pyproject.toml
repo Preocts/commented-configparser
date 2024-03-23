@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -20,7 +20,7 @@ classifiers = [
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: Implementation :: CPython"
 ]
-# Define dependencies directly
+
 dependencies = []
 
 [project.optional-dependencies]
@@ -36,24 +36,11 @@ test = [
     "pytest",
     "pytest-randomly",
     "coverage",
-    "tox"
+    "nox"
 ]
 
 [project.urls]
 homepage = "https://github.com/Preocts/commented-configparser"
-# documentation = ""
-# repository = ""
-# changelog = ""
-
-# CLI scripts if needed
-# [project.scripts]
-# python-src-example = "commented-configparser.sample:main"
-
-# [tool.setuptools.packages.find]
-# where = ["src"]  # ["."] by default
-# include = ["*"]  # ["*"] by default
-# exclude = ["tests"]  # empty by default
-# namespaces = true  # true by default
 
 [tool.setuptools.package-data]
 "commentedconfigparser" = ["py.typed"]
@@ -99,42 +86,3 @@ exclude_lines =[
     "if TYPE_CHECKING:",
     "\\.\\.\\.",
 ]
-
-# This is ignored by flake8, here in case they decide to add it in the future
-[tool.flake8]
-ignore = "W503,E203"
-max-line-length = 88
-
-[tool.tox]
-legacy_tox_ini = """
-[tox]
-envlist = py38,py39,py310,py311,py312,coverage,mypy,pre-commit
-skip_missing_interpreters = true
-isolated_build = True
-
-[testenv]
-deps = .[test]
-commands =
-    coverage run -p -m pytest tests/
-
-[testenv:coverage]
-depends = py38,py39,py310,py311,py312
-parallel_show_output = true
-commands =
-    python -m coverage combine
-    python -m coverage report -m --fail-under=50
-    python -m coverage json
-
-[testenv:mypy]
-deps =
-    mypy
-commands =
-    mypy -p commentedconfigparser
-
-[testenv:pre-commit]
-depends = coverage
-parallel_show_output = true
-skip_install = true
-deps = pre-commit
-commands = pre-commit run --all-files --show-diff-on-failure
-"""
