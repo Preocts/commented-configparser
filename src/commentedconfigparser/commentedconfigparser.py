@@ -1,4 +1,5 @@
 """Custom ConfigParser class that preserves comments when writing loaded config out."""
+
 from __future__ import annotations
 
 import os
@@ -7,7 +8,6 @@ from collections.abc import Iterable
 from configparser import ConfigParser
 from io import StringIO
 from typing import TYPE_CHECKING
-
 
 if TYPE_CHECKING:
     from _typeshed import StrOrBytesPath

@@ -5,6 +5,7 @@ from io import StringIO
 from pathlib import Path
 
 import pytest
+
 from commentedconfigparser.commentedconfigparser import CommentedConfigParser
 
 CONFIG_W_COMMENTS = "tests/withcomments.ini"
