@@ -25,7 +25,7 @@ class CommentedConfigParser(ConfigParser):
 
     _comment_map: dict[str, dict[str, list[str]]] | None = None
 
-    def optionxform(self, optionstr):
+    def optionxform(self, optionstr: str) -> str:
         return optionstr
 
     def read(
