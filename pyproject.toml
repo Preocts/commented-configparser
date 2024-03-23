@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "commented-configparser"
 version = "1.0.0"
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 description = "Custom ConfigParser class that preserves comments in file when writing"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -22,12 +22,6 @@ classifiers = [
 ]
 # Define dependencies directly
 dependencies = []
-
-# Optional use requirements.txt as input (generated from pip-tools pip-compile)
-# 20221003 - Does not presently support hashes
-# dynamic = ["dependencies"]
-# [tool.setuptools.dynamic]
-# dependencies = {file = ["requirements.txt"]}
 
 [project.optional-dependencies]
 dev = [
@@ -114,7 +108,7 @@ max-line-length = 88
 [tool.tox]
 legacy_tox_ini = """
 [tox]
-envlist = py37,py38,py39,py310,py311,py312,coverage,mypy,pre-commit
+envlist = py38,py39,py310,py311,py312,coverage,mypy,pre-commit
 skip_missing_interpreters = true
 isolated_build = True
 
@@ -124,7 +118,7 @@ commands =
     coverage run -p -m pytest tests/
 
 [testenv:coverage]
-depends = py37,py38,py39,py310,py311,py312
+depends = py38,py39,py310,py311,py312
 parallel_show_output = true
 commands =
     python -m coverage combine
