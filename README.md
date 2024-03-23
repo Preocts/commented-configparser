@@ -24,10 +24,10 @@ python -m pip install commented-configparser
 From github:
 
 ```bash
-python -m pip install commented-configparser@git+https://github.com/Preocts/commented-configparser@main
+python -m pip install commented-configparser@git+https://github.com/Preocts/commented-configparser@v1.0.0
 ```
 
-**Note:** Replace `main` with the desired tag or branch.  This can be placed in a `requirements.txt` file as well.
+**Note:** Replace `v1.0.0` with the desired tag or branch.
 
 ---
 
