@@ -38,13 +38,13 @@ class CommentedConfigParser(ConfigParser):
 
         for filename in filenames:
             content = self._fileload(filename, encoding)
-            self._map_comments(content)
+            self._translate_comments(content)
 
         return super().read(filenames, encoding)
 
     def read_file(self, f: Iterable[str], source: str | None = None) -> None:
         content = [line for line in f]
-        self._map_comments("".join(content))
+        self._translate_comments(content)
 
         return super().read_file(content, source)
 
@@ -99,44 +99,41 @@ class CommentedConfigParser(ConfigParser):
         matches = KEY_PATTERN.match(line)
         return matches.group(1).strip() if matches else line.strip()
 
-    def _map_comments(self, content: str | None) -> None:
-        """Map comments of config internally for restoration on write."""
-        # The map holds comments that happen under the given key
-        # @@header is an arbatrary section and key assigned to
-        # capture the top of a file or section.
-        section = "@@header"
-        key = "@@header"
+    def _translate_comments(self, content: str | list[str] | None) -> str | None:
+        """Translate comments to section options while storing header."""
+        if content is None:
+            return content
 
-        content_lines = content.split("\n") if content is not None else []
-        comment_lines: list[str] = []
-        comment_map = self._comment_map if self._comment_map else {}
+        # The header contains any comments that arrive before a section
+        # is declared. These cannot be translated to options and must
+        # be stored internally.
+        header = []
+        seen_section = False
 
-        for line in content_lines:
-            # Define the section or use existing
-            comment_map[section] = comment_map.get(section, {})
+        if isinstance(content, str):
+            content_lines = content.split("\n") if content is not None else []
+        else:
+            content_lines = content
 
-            if self._is_comment(line):
-                comment_lines.append(line)
+        translated_lines = []
+        for idx, line in enumerate(content_lines):
+            if self._is_section(line):
+                seen_section = True
 
-            # We allow empty lines to be ignored giving the library
-            # control over general line spacing format.
-            elif not self._is_empty(line):
-                # Update the current section, clear, and start again
-                comment_map[section][key] = comment_lines.copy()
-                comment_lines.clear()
+            if not seen_section:
+                # Assume lines before a section are comments. If they are not
+                # the parent class will raise the needed exceptions for an
+                # invalid config format.
+                header.append(line)
 
-                # Figure out if we have a key or a new section
-                if self._is_section(line):
-                    # TODO: Probably should rename this method. _get_token() ?
-                    section = self._get_key(line)
-                    key = "@@header"
-                else:
-                    key = self.optionxform(self._get_key(line))
+            elif self._is_comment(line):
+                # Translate the comment into an option for the section. These
+                # are handled by the parent and retain order of insertion.
+                line = f"__comment_{idx}={line}"
 
-        # Capture all trailing lines in comment_lines on exit of loop
-        comment_map[section][key] = comment_lines.copy()
+            translated_lines.append(line)
 
-        self._comment_map = comment_map
+        return "\n".join(translated_lines)
 
     def _restore_comments(self, content: str) -> str:
         """Restore comments from internal map."""
