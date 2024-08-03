@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 __all__ = ["CommentedConfigParser"]
 
 COMMENT_PATTERN = re.compile(r"^\s*[#|;].+$")
+COMMENT_OPTION_PATTERN = re.compile(r"^(\s*)?__comment_\d+[=|:](.*)$")
 KEY_PATTERN = re.compile(r"^(.+?)[=|:].*$")
 SECTION_PATTERN = re.compile(r"^\s*\[(.+)\]\s*$")
 
@@ -23,7 +24,9 @@ SECTION_PATTERN = re.compile(r"^\s*\[(.+)\]\s*$")
 class CommentedConfigParser(ConfigParser):
     """Custom ConfigParser that preserves comments when writing a loaded config out."""
 
-    _comment_map: dict[str, dict[str, list[str]]] | None = None
+    def __init__(self) -> None:
+        self._headers: list[str] = []
+        super().__init__()
 
     def optionxform(self, optionstr: str) -> str:
         return optionstr
@@ -49,16 +52,12 @@ class CommentedConfigParser(ConfigParser):
         return super().read_file(content, source)
 
     def write(
-        self, fp: SupportsWrite[str], space_around_delimiters: bool = True
+        self,
+        fp: SupportsWrite[str],
+        space_around_delimiters: bool = True,
     ) -> None:
-        # Early exit if the config was never loaded with comments (from_dict/run-time)
-        if self._comment_map is None:
-            return super().write(fp, space_around_delimiters)
-
         capture_output = StringIO()
         super().write(capture_output, space_around_delimiters)
-
-        self._merge_deleted_keys()
 
         rendered_output = self._restore_comments(capture_output.getvalue())
 
@@ -75,18 +74,6 @@ class CommentedConfigParser(ConfigParser):
                 return infile.read()
         except OSError:
             return None
-
-    def _is_comment(self, line: str) -> bool:
-        """True if the line is a valid ini comment."""
-        return bool(COMMENT_PATTERN.search(line))
-
-    def _is_empty(self, line: str) -> bool:
-        """True if line is just whitesspace."""
-        return not bool(re.sub(r"\s*", "", line))
-
-    def _is_section(self, line: str) -> bool:
-        """True if line is a section."""
-        return bool(SECTION_PATTERN.search(line))
 
     def _get_key(self, line: str) -> str:
         """
@@ -117,7 +104,7 @@ class CommentedConfigParser(ConfigParser):
 
         translated_lines = []
         for idx, line in enumerate(content_lines):
-            if self._is_section(line):
+            if SECTION_PATTERN.match(line):
                 seen_section = True
 
             if not seen_section:
@@ -126,7 +113,7 @@ class CommentedConfigParser(ConfigParser):
                 # invalid config format.
                 header.append(line)
 
-            elif self._is_comment(line):
+            elif COMMENT_PATTERN.match(line):
                 # Translate the comment into an option for the section. These
                 # are handled by the parent and retain order of insertion.
                 line = f"__comment_{idx}={line}"
@@ -136,60 +123,15 @@ class CommentedConfigParser(ConfigParser):
         return "\n".join(translated_lines)
 
     def _restore_comments(self, content: str) -> str:
-        """Restore comments from internal map."""
-        if self._comment_map is None:
-            # This should never be needed
-            return content
-
-        section = "@@header"
-        key = "@@header"
+        """Restore comment options to comments."""
         # Apply the headers before parsing the config lines
-        rendered: list[str] = self._comment_map[section].get(key, [])
+        rendered = [] + self._headers
 
         for line in content.splitlines():
-            # Order of reconstruction is config-line then any comments
+            comment_match = COMMENT_OPTION_PATTERN.match(line)
+            if comment_match:
+                line = comment_match.group(2)
+
             rendered.append(line)
 
-            if self._is_section(line):
-                section = self._get_key(line)
-                key = "@@header"
-            else:
-                key = self._get_key(line)
-
-            rendered.extend(self._comment_map.get(section, {}).get(key, []))
-
         return "\n".join(rendered)
-
-    def _merge_deleted_keys(self) -> None:
-        """Find and merges comments of deleted keys up the comment_map tree."""
-        if self._comment_map is None:
-            return
-
-        orphaned_comments: list[str] = []
-        # Walk the sections and keys backward so we merge 'up'.
-        for section in list(self._comment_map.keys())[::-1]:
-            section_mch = SECTION_PATTERN.match(section)
-            if section_mch is None:
-                # Strange that we have a section value that isn't a valid section
-                continue
-
-            for key in list(self._comment_map[section])[::-1]:
-                # Key no longer exists, gather comments and loop upward
-                if key != "@@header" and not self.has_option(section_mch.group(1), key):
-                    # Comments need to be stored in reverse order to avoid
-                    # needing to insert into front of list
-                    orphaned_comments.extend(self._comment_map[section].pop(key)[::-1])
-
-                elif section_mch.group(1) in self.keys():
-                    # Drop everything in the next key that exists
-                    # If the section is gone carry all comments up to bottom of next
-                    # Reverve the order as they were added in reverse
-                    self._comment_map[section][key].extend(orphaned_comments[::-1])
-                    orphaned_comments.clear()
-
-            # Remove sections that should now be empty
-            if not section_mch.group(1) in self.keys():
-                self._comment_map.pop(section)
-
-        # All remaining orphans moved to the top of the file
-        self._comment_map["@@header"]["@@header"].extend(orphaned_comments[::-1])
