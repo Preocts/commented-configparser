@@ -15,9 +15,9 @@ if TYPE_CHECKING:
 
 __all__ = ["CommentedConfigParser"]
 
-COMMENT_PTN = re.compile(r"^\s*[#|;]")
-KEY_PTN = re.compile("^(.+?)[=|:]")
-SECTION_PTN = re.compile(r"^\s*\[(.+)\]\s*$")
+COMMENT_PATTERN = re.compile(r"^\s*[#|;].+$")
+KEY_PATTERN = re.compile(r"^(.+?)[=|:].*$")
+SECTION_PATTERN = re.compile(r"^\s*\[(.+)\]\s*$")
 
 
 class CommentedConfigParser(ConfigParser):
@@ -78,7 +78,7 @@ class CommentedConfigParser(ConfigParser):
 
     def _is_comment(self, line: str) -> bool:
         """True if the line is a valid ini comment."""
-        return bool(COMMENT_PTN.search(line))
+        return bool(COMMENT_PATTERN.search(line))
 
     def _is_empty(self, line: str) -> bool:
         """True if line is just whitesspace."""
@@ -86,7 +86,7 @@ class CommentedConfigParser(ConfigParser):
 
     def _is_section(self, line: str) -> bool:
         """True if line is a section."""
-        return bool(SECTION_PTN.search(line))
+        return bool(SECTION_PATTERN.search(line))
 
     def _get_key(self, line: str) -> str:
         """
@@ -96,7 +96,7 @@ class CommentedConfigParser(ConfigParser):
         the line contains neither, the entire line is returned.
         """
         # Find which of the two assigment delimiters is used first
-        matches = KEY_PTN.match(line)
+        matches = KEY_PATTERN.match(line)
         return matches.group(1).strip() if matches else line.strip()
 
     def _map_comments(self, content: str | None) -> None:
@@ -171,7 +171,7 @@ class CommentedConfigParser(ConfigParser):
         orphaned_comments: list[str] = []
         # Walk the sections and keys backward so we merge 'up'.
         for section in list(self._comment_map.keys())[::-1]:
-            section_mch = SECTION_PTN.match(section)
+            section_mch = SECTION_PATTERN.match(section)
             if section_mch is None:
                 # Strange that we have a section value that isn't a valid section
                 continue
