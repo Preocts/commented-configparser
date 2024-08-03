@@ -404,3 +404,22 @@ def test_merge_deleted_sections() -> None:
     cc._merge_deleted_keys()
 
     assert cc._comment_map == expected
+
+
+def test_issue_46_duplicating_sections(tmp_path: Path) -> None:
+    # https://github.com/Preocts/commented-configparser/issues/46
+    tmp_file = tmp_path / "issue46_test_file.ini"
+    starting_config = "[example]\nfoo = 0\n"
+    expected = "[example]\nfoo = 9\n"
+    tmp_file.write_text(starting_config, "utf-8")
+    cc = CommentedConfigParser()
+    cc.read(tmp_file)
+
+    # v1 bug which duplicated sections when explicily writing the config back
+    # to file in a loop which was using .set(...)
+    for idx in range(10):
+        cc.set("example", "foo", str(idx))
+        with open(tmp_file, "w", encoding="utf-8") as outfile:
+            cc.write(outfile)
+
+    assert tmp_file.read_text("utf-8") == expected
