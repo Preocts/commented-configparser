@@ -80,17 +80,6 @@ class CommentedConfigParser(ConfigParser):
 
         fp.write(rendered_output)
 
-    def _get_key(self, line: str) -> str:
-        """
-        Return the key of a line trimmed of leading/trailing whitespace.
-
-        Respects both `=` and `:` delimiters, uses which happens first. If
-        the line contains neither, the entire line is returned.
-        """
-        # Find which of the two assigment delimiters is used first
-        matches = KEY_PATTERN.match(line)
-        return matches.group(1).strip() if matches else line.strip()
-
     def _translate_comments(self, content: str | list[str]) -> str:
         """Translate comments to section options while storing header."""
         seen_section = False
