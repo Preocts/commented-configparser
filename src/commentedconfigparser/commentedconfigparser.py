@@ -25,15 +25,6 @@ SECTION_PATTERN = re.compile(r"^\s*\[(.+)\]\s*$")
 class CommentedConfigParser(ConfigParser):
     """Custom ConfigParser that preserves comments when writing a loaded config out."""
 
-    def __init__(self) -> None:
-        # The header contains any comments that arrive before a section
-        # is declared. These cannot be translated to options and must
-        # be stored internally.
-        self._headers: list[str] = []
-        self._commentprefix = 0
-
-        super().__init__()
-
     def read(
         self,
         filenames: StrOrBytesPath | Iterable[StrOrBytesPath],
@@ -83,6 +74,14 @@ class CommentedConfigParser(ConfigParser):
         """Translate comments to section options while storing header."""
         seen_section = False
 
+        # To save the pain of mirroring ConfigParser's __init__ these two
+        # attributes are created in the instance here, when needed.
+        if not hasattr(self, "_headers"):
+            self._headers: list[str] = []
+
+        if not hasattr(self, "_commentprefix"):
+            self._commentprefix = 0
+
         translated_lines = []
         for idx, line in enumerate(content):
             if SECTION_PATTERN.match(line):
@@ -117,7 +116,9 @@ class CommentedConfigParser(ConfigParser):
     def _restore_comments(self, content: str) -> str:
         """Restore comment options to comments."""
         # Apply the headers before parsing the config lines
-        rendered = [] + self._headers
+        rendered = []
+        if hasattr(self, "_headers"):
+            rendered += self._headers
 
         for line in content.splitlines():
             comment_match = COMMENT_OPTION_PATTERN.match(line)
