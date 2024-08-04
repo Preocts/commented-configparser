@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 import os
 import re
 from collections.abc import Iterable
@@ -15,9 +16,9 @@ if TYPE_CHECKING:
 
 __all__ = ["CommentedConfigParser"]
 
-COMMENT_PATTERN = re.compile(r"^\s*[#|;].+$")
-COMMENT_OPTION_PATTERN = re.compile(r"^(\s*)?__comment_\d+[=|:](.*)$")
-KEY_PATTERN = re.compile(r"^(.+?)[=|:].*$")
+COMMENT_PATTERN = re.compile(r"^\s*[#|;]\s*(.+)$")
+COMMENT_OPTION_PATTERN = re.compile(r"^(\s*)?__comment_\d+\s?[=|:]\s?(.*)$")
+KEY_PATTERN = re.compile(r"^(.+?)\s?[=|:].*$")
 SECTION_PATTERN = re.compile(r"^\s*\[(.+)\]\s*$")
 
 
@@ -25,7 +26,11 @@ class CommentedConfigParser(ConfigParser):
     """Custom ConfigParser that preserves comments when writing a loaded config out."""
 
     def __init__(self) -> None:
+        # The header contains any comments that arrive before a section
+        # is declared. These cannot be translated to options and must
+        # be stored internally.
         self._headers: list[str] = []
+
         super().__init__()
 
     def optionxform(self, optionstr: str) -> str:
@@ -36,20 +41,32 @@ class CommentedConfigParser(ConfigParser):
         filenames: StrOrBytesPath | Iterable[StrOrBytesPath],
         encoding: str | None = None,
     ) -> list[str]:
+        # Re-implementing the parent method so that the handling of file
+        # contents can be routed through .read_file(). Otherwise injecting
+        # the comment translation is more difficult.
         if isinstance(filenames, (str, bytes, os.PathLike)):
             filenames = [filenames]
 
-        for filename in filenames:
-            content = self._fileload(filename, encoding)
-            self._translate_comments(content)
+        encoding = io.text_encoding(encoding)
 
-        return super().read(filenames, encoding)
+        read_ok = []
+        for filename in filenames:
+            try:
+                with open(filename, encoding=encoding) as fp:
+                    self.read_file(fp)
+
+            except OSError:
+                continue
+
+            if isinstance(filename, os.PathLike):
+                filename = os.fspath(filename)
+            read_ok.append(str(filename))
+
+        return read_ok
 
     def read_file(self, f: Iterable[str], source: str | None = None) -> None:
-        content = [line for line in f]
-        self._translate_comments(content)
-
-        return super().read_file(content, source)
+        content = self._translate_comments([line for line in f])
+        return super().read_file(content.splitlines(), source)
 
     def write(
         self,
@@ -58,7 +75,6 @@ class CommentedConfigParser(ConfigParser):
     ) -> None:
         capture_output = StringIO()
         super().write(capture_output, space_around_delimiters)
-
         rendered_output = self._restore_comments(capture_output.getvalue())
 
         fp.write(rendered_output)
@@ -67,13 +83,13 @@ class CommentedConfigParser(ConfigParser):
         self,
         filepath: StrOrBytesPath,
         encoding: str | None = None,
-    ) -> str | None:
+    ) -> str:
         """Load a file if it exists."""
         try:
             with open(filepath, encoding=encoding) as infile:
                 return infile.read()
         except OSError:
-            return None
+            return ""
 
     def _get_key(self, line: str) -> str:
         """
@@ -86,19 +102,12 @@ class CommentedConfigParser(ConfigParser):
         matches = KEY_PATTERN.match(line)
         return matches.group(1).strip() if matches else line.strip()
 
-    def _translate_comments(self, content: str | list[str] | None) -> str | None:
+    def _translate_comments(self, content: str | list[str]) -> str:
         """Translate comments to section options while storing header."""
-        if content is None:
-            return content
-
-        # The header contains any comments that arrive before a section
-        # is declared. These cannot be translated to options and must
-        # be stored internally.
-        header = []
         seen_section = False
 
         if isinstance(content, str):
-            content_lines = content.split("\n") if content is not None else []
+            content_lines = content.splitlines() if content is not None else []
         else:
             content_lines = content
 
@@ -111,16 +120,23 @@ class CommentedConfigParser(ConfigParser):
                 # Assume lines before a section are comments. If they are not
                 # the parent class will raise the needed exceptions for an
                 # invalid config format.
-                header.append(line)
+                self._headers.append(line)
 
             elif COMMENT_PATTERN.match(line):
                 # Translate the comment into an option for the section. These
                 # are handled by the parent and retain order of insertion.
-                line = f"__comment_{idx}={line}"
+                line = f"__comment_{idx}={line.lstrip()}"
+
+            elif KEY_PATTERN.match(line) or SECTION_PATTERN.match(line):
+                # Strip the left whitespace from sections and keys. This will
+                # leave only multiline values with leading whitespace preventing
+                # the saved output from incorrectly indenting after a comment
+                # when the loaded config contains indented sections.
+                line = line.lstrip()
 
             translated_lines.append(line)
 
-        return "\n".join(translated_lines)
+        return "".join(translated_lines)
 
     def _restore_comments(self, content: str) -> str:
         """Restore comment options to comments."""
@@ -132,6 +148,6 @@ class CommentedConfigParser(ConfigParser):
             if comment_match:
                 line = comment_match.group(2)
 
-            rendered.append(line)
+            rendered.append(line + "\n")
 
-        return "\n".join(rendered)
+        return "".join(rendered)
