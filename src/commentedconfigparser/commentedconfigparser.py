@@ -30,6 +30,7 @@ class CommentedConfigParser(ConfigParser):
         # is declared. These cannot be translated to options and must
         # be stored internally.
         self._headers: list[str] = []
+        self._commentprefix = 0
 
         super().__init__()
 
@@ -113,7 +114,7 @@ class CommentedConfigParser(ConfigParser):
             elif COMMENT_PATTERN.match(line):
                 # Translate the comment into an option for the section. These
                 # are handled by the parent and retain order of insertion.
-                line = f"__comment_{idx}={line.lstrip()}"
+                line = f"__comment_{self._commentprefix}{idx}={line.lstrip()}"
 
             elif KEY_PATTERN.match(line) or SECTION_PATTERN.match(line):
                 # Strip the left whitespace from sections and keys. This will
@@ -123,6 +124,10 @@ class CommentedConfigParser(ConfigParser):
                 line = line.lstrip()
 
             translated_lines.append(line)
+
+        # If additional configuration files are loaded, comments may end up sharing
+        # idx values which will clobber previously loaded comments.
+        self._commentprefix += 1
 
         return "".join(translated_lines)
 

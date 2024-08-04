@@ -149,16 +149,21 @@ def test_write_with_no_comments() -> None:
 @pytest.mark.parametrize(
     ("ini_in", "ini_expected"),
     (
-        ("header_input.ini", "header_expected.ini"),
-        ("pydocs_input.ini", "pydocs_expected.ini"),
-        ("regression_original_input.ini", "regression_original_expected.ini"),
+        (["header_input.ini"], "header_expected.ini"),
+        (["pydocs_input.ini"], "pydocs_expected.ini"),
+        (["regression_original_input.ini"], "regression_original_expected.ini"),
+        (["multi02_input.ini", "multi01_input.ini"], "multi_expected.ini"),
     ),
 )
-def test_reading_and_writing(ini_in: str, ini_expected: str, tmp_path: Path) -> None:
+def test_reading_and_writing_config_files(
+    ini_in: list[str],
+    ini_expected: str,
+    tmp_path: Path,
+) -> None:
     tmp_file = tmp_path / "test_reading_and_writing.ini"
     expected = (Path("tests") / ini_expected).read_text(encoding="utf-8")
     config = CommentedConfigParser()
-    config.read(Path("tests") / ini_in)
+    config.read([Path("tests") / file for file in ini_in])
 
     with open(tmp_file, "w", encoding="utf-8") as outfile:
         config.write(outfile)
