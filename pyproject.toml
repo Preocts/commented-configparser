@@ -1,10 +1,9 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools", "setuptools_scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "commented-configparser"
-version = "1.0.0"
 requires-python = ">=3.8"
 description = "Custom ConfigParser class that preserves comments in file when writing"
 readme = "README.md"
@@ -20,9 +19,9 @@ classifiers = [
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: Implementation :: CPython"
 ]
+dynamic = ["dependencies", "optional-dependencies", "version"]
 
-# Dynamic dependencies are loaded from requirements*.txt files
-dynamic = ["dependencies", "optional-dependencies"]
+[tool.setuptools_scm]
 
 [tool.setuptools.dynamic.dependencies]
 file = ["requirements/requirements.txt"]
