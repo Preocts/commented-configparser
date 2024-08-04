@@ -148,6 +148,29 @@ def test_write_with_no_comments() -> None:
     assert mock_file.getvalue() == expected
 
 
+@pytest.mark.parametrize(
+    ("ini_in", "ini_expected"),
+    (
+        ("header_input.ini", "header_expected.ini"),
+        ("pydocs_input.ini", "pydocs_expected.ini"),
+        ("regression_original_input.ini", "regression_original_expected.ini"),
+    ),
+)
+def test_reading_and_writing(ini_in: str, ini_expected: str, tmp_path: Path) -> None:
+    tmp_file = tmp_path / "test_reading_and_writing.ini"
+    expected = (Path("tests") / ini_expected).read_text(encoding="utf-8")
+    config = CommentedConfigParser()
+    config.read(Path("tests") / ini_in)
+
+    with open(tmp_file, "w", encoding="utf-8") as outfile:
+        config.write(outfile)
+
+    with open(tmp_file, encoding="utf-8") as infile:
+        contents = infile.read()
+
+    assert contents == expected
+
+
 def test_issue_46_duplicating_sections(tmp_path: Path) -> None:
     # https://github.com/Preocts/commented-configparser/issues/46
     tmp_file = tmp_path / "issue46_test_file.ini"
