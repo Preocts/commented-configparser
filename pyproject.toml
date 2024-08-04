@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools", "setuptools-scm"]
+requires = ["setuptools", "setuptools_scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -21,7 +21,7 @@ classifiers = [
 ]
 dynamic = ["dependencies", "optional-dependencies", "version"]
 
-[tool.setuptools-scm]
+[tool.setuptools_scm]
 
 [tool.setuptools.dynamic.dependencies]
 file = ["requirements/requirements.txt"]
