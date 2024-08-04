@@ -79,18 +79,6 @@ class CommentedConfigParser(ConfigParser):
 
         fp.write(rendered_output)
 
-    def _fileload(
-        self,
-        filepath: StrOrBytesPath,
-        encoding: str | None = None,
-    ) -> str:
-        """Load a file if it exists."""
-        try:
-            with open(filepath, encoding=encoding) as infile:
-                return infile.read()
-        except OSError:
-            return ""
-
     def _get_key(self, line: str) -> str:
         """
         Return the key of a line trimmed of leading/trailing whitespace.
