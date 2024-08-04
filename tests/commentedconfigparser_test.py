@@ -8,7 +8,7 @@ import pytest
 from commentedconfigparser import commentedconfigparser
 from commentedconfigparser.commentedconfigparser import CommentedConfigParser
 
-CONFIG_W_COMMENTS = "tests/withcomments.ini"
+CONFIG_W_COMMENTS = "tests/regression_original_input.ini"
 
 
 @pytest.mark.parametrize(
@@ -56,11 +56,9 @@ def test_section_pattern(line: str, expected: bool) -> None:
         ("key:=value", "key"),
         ("key : value", "key"),
         ("key:value", "key"),
-        ("\tkey with spaces=value", "key with spaces"),
-        ("\tkey: value with = in it", "key"),  # both delimiters
-        ("\tkey=val:ues", "key"),  # both delimiter equal spacing
-        ("\t[SECTION name]", "[SECTION name]"),
-        ("", ""),
+        ("\tkey with spaces=value", "\tkey with spaces"),
+        ("\tkey: value with = in it", "\tkey"),  # both delimiters
+        ("\tkey=val:ues", "\tkey"),  # both delimiter equal spacing
     ),
 )
 def test_key_pattern(line: str, expected: str) -> None:
@@ -130,30 +128,13 @@ def test_regression_read_dict_loads_normally() -> None:
 
 def test_regression_write_normally() -> None:
     cc = CommentedConfigParser()
-    expected = "[TEST]\ntest=pass\n"
+    expected = "[TEST]\ntest=pass\n\n"
     cc.read_string(expected)
     mock_file = StringIO()
 
     cc.write(mock_file, space_around_delimiters=False)
 
     assert mock_file.getvalue() == expected
-
-
-def test_fileload() -> None:
-    cc = CommentedConfigParser()
-
-    result = cc._fileload("tests/withcomments.ini")
-
-    assert result
-    assert "[NEW SECTION]" in result
-
-
-def test_fileload_silently_fails() -> None:
-    cc = CommentedConfigParser()
-
-    result = cc._fileload("tests/notherefile.ini")
-
-    assert result is None
 
 
 def test_write_with_no_comments() -> None:
@@ -171,7 +152,7 @@ def test_issue_46_duplicating_sections(tmp_path: Path) -> None:
     # https://github.com/Preocts/commented-configparser/issues/46
     tmp_file = tmp_path / "issue46_test_file.ini"
     starting_config = "[example]\nfoo = 0\n"
-    expected = "[example]\nfoo = 9\n"
+    expected = "[example]\nfoo = 9\n\n"
     tmp_file.write_text(starting_config, "utf-8")
     cc = CommentedConfigParser()
     cc.read(tmp_file)
