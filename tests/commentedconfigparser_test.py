@@ -8,8 +8,6 @@ import pytest
 from commentedconfigparser import commentedconfigparser
 from commentedconfigparser.commentedconfigparser import CommentedConfigParser
 
-CONFIG_W_COMMENTS = "tests/regression_original_input.ini"
-
 
 @pytest.mark.parametrize(
     ("line", "expected"),
@@ -88,7 +86,7 @@ def test_comment_option_pattern(line: str, expected: str) -> None:
 def test_regression_read_loads_normally_list() -> None:
     cc = CommentedConfigParser()
 
-    read = cc.read([CONFIG_W_COMMENTS, "notfoundatall.ini"])
+    read = cc.read(["tests/regression_original_input.ini", "notfoundatall.ini"])
 
     assert len(read) == 1
 
@@ -96,7 +94,7 @@ def test_regression_read_loads_normally_list() -> None:
 def test_regression_read_loads_normally_single_file() -> None:
     cc = CommentedConfigParser()
 
-    read = cc.read(CONFIG_W_COMMENTS)
+    read = cc.read("tests/regression_original_input.ini")
 
     assert len(read) == 1
 
@@ -104,7 +102,7 @@ def test_regression_read_loads_normally_single_file() -> None:
 def test_regression_read_file_normally() -> None:
     cc = CommentedConfigParser()
 
-    with open(CONFIG_W_COMMENTS) as file:
+    with open("tests/regression_original_input.ini") as file:
         cc.read_file(file)
 
     assert cc.get("NEW SECTION", "closing") == "0"
