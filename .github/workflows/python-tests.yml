@@ -30,6 +30,7 @@ jobs:
           - "3.10"
           - "3.11"
           - "3.12"
+          - "3.13"
 
     steps:
       - name: "Repo checkout"
@@ -67,7 +68,7 @@ jobs:
       - name: "Set up Python"
         uses: "actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c"
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: "Install nox"
         run: |
@@ -96,7 +97,7 @@ jobs:
       - name: "Set up Python"
         uses: "actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c"
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: "Install nox"
         run: |
@@ -105,12 +106,3 @@ jobs:
       - name: "Enforce strict type annotations with mypy"
         run: |
           nox --session mypy_check
-
-  ci-success:
-    name: "CI steps all completed successfully"
-    needs: ["coverage-compile", "mypy-check"]
-    runs-on: "ubuntu-latest"
-    steps:
-      - name: "Success"
-        run: |
-          echo "If you are seeing this, the CI run was successful."

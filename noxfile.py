@@ -11,7 +11,7 @@ import nox
 MODULE_NAME = "commentedconfigparser"
 TESTS_PATH = "tests"
 COVERAGE_FAIL_UNDER = 100
-DEFAULT_PYTHON_VERSION = "3.11"
+DEFAULT_PYTHON_VERSION = "3.12"
 VENV_PATH = "venv"
 REQUIREMENT_IN_FILES = [
     pathlib.Path("requirements/requirements.in"),
@@ -42,7 +42,7 @@ nox.options.sessions = [
 
 
 @nox.session(
-    python=["3.8", "3.9", "3.10", "3.11", "3.12"],
+    python=["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"],
 )
 def tests_with_coverage(session: nox.Session) -> None:
     """Run unit tests with coverage saved to partial file."""
