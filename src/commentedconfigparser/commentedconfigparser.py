@@ -82,17 +82,12 @@ class CommentedConfigParser(ConfigParser):
 
         fp.write(rendered_output)
 
-    def _translate_comments(self, content: str | list[str]) -> str:
+    def _translate_comments(self, content: list[str]) -> str:
         """Translate comments to section options while storing header."""
         seen_section = False
 
-        if isinstance(content, str):
-            content_lines = content.splitlines() if content is not None else []
-        else:
-            content_lines = content
-
         translated_lines = []
-        for idx, line in enumerate(content_lines):
+        for idx, line in enumerate(content):
             if SECTION_PATTERN.match(line):
                 seen_section = True
 
