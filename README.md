@@ -24,10 +24,10 @@ python -m pip install commented-configparser
 From github:
 
 ```bash
-python -m pip install commented-configparser@git+https://github.com/Preocts/commented-configparser@v1.0.0
+python -m pip install commented-configparser@git+https://github.com/Preocts/commented-configparser@x.x.x
 ```
 
-**Note:** Replace `v1.0.0` with the desired tag or branch.
+**Note:** Replace `x.x.x` with the desired tag or branch.
 
 ---
 
@@ -87,21 +87,21 @@ closing=0
 # Welcome to our config
 [DEFAULT]
 # This value has some meaning to someone
-foo=bar
+foo = bar
 # Make sure to add this when you need it
-trace=false
-logging=true
+trace = false
+logging = true
 ; This is a comment as well
-    # so we need to track all of them
-	; and many could be between things
+# so we need to track all of them
+; and many could be between things
 
 [NEW SECTION]
 # Another comment
-multi-line=
+multi-line =
 	value01
 	value02
 	value03
-closing=0
+closing = 0
 # Trailing comment
 
 ```
