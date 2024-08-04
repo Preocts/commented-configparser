@@ -191,3 +191,11 @@ def test_issue_46_duplicating_sections(tmp_path: Path) -> None:
             cc.write(outfile)
 
     assert tmp_file.read_text("utf-8") == expected
+
+
+def test_regression_keys_are_treated_as_case_insensitive() -> None:
+    configdict = {"default": {"FoO": "BAR"}}
+    config = CommentedConfigParser()
+    config.read_dict(configdict)
+
+    assert config.get("default", "Foo") == "BAR"

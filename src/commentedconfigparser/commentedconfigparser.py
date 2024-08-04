@@ -34,9 +34,6 @@ class CommentedConfigParser(ConfigParser):
 
         super().__init__()
 
-    def optionxform(self, optionstr: str) -> str:
-        return optionstr
-
     def read(
         self,
         filenames: StrOrBytesPath | Iterable[StrOrBytesPath],
