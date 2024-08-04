@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 import os
 import re
 from collections.abc import Iterable
@@ -15,184 +16,114 @@ if TYPE_CHECKING:
 
 __all__ = ["CommentedConfigParser"]
 
-COMMENT_PTN = re.compile(r"^\s*[#|;]")
-KEY_PTN = re.compile("^(.+?)[=|:]")
-SECTION_PTN = re.compile(r"^\s*\[(.+)\]\s*$")
+COMMENT_PATTERN = re.compile(r"^\s*[#|;]\s*(.+)$")
+COMMENT_OPTION_PATTERN = re.compile(r"^(\s*)?__comment_\d+\s?[=|:]\s?(.*)$")
+KEY_PATTERN = re.compile(r"^(.+?)\s?[=|:].*$")
+SECTION_PATTERN = re.compile(r"^\s*\[(.+)\]\s*$")
 
 
 class CommentedConfigParser(ConfigParser):
     """Custom ConfigParser that preserves comments when writing a loaded config out."""
 
-    _comment_map: dict[str, dict[str, list[str]]] | None = None
+    def __init__(self) -> None:
+        # The header contains any comments that arrive before a section
+        # is declared. These cannot be translated to options and must
+        # be stored internally.
+        self._headers: list[str] = []
+        self._commentprefix = 0
 
-    def optionxform(self, optionstr: str) -> str:
-        return optionstr
+        super().__init__()
 
     def read(
         self,
         filenames: StrOrBytesPath | Iterable[StrOrBytesPath],
         encoding: str | None = None,
     ) -> list[str]:
+        # Re-implementing the parent method so that the handling of file
+        # contents can be routed through .read_file(). Otherwise injecting
+        # the comment translation is more difficult.
         if isinstance(filenames, (str, bytes, os.PathLike)):
             filenames = [filenames]
 
-        for filename in filenames:
-            content = self._fileload(filename, encoding)
-            self._map_comments(content)
+        # This only exists in 3.10+ and assists with unifying encoding.
+        if hasattr(io, "text_encoding"):
+            encoding = io.text_encoding(encoding)
 
-        return super().read(filenames, encoding)
+        read_ok = []
+        for filename in filenames:
+            try:
+                with open(filename, encoding=encoding) as fp:
+                    self.read_file(fp)
+
+            except OSError:
+                continue
+
+            if isinstance(filename, os.PathLike):
+                filename = os.fspath(filename)
+            read_ok.append(str(filename))
+
+        return read_ok
 
     def read_file(self, f: Iterable[str], source: str | None = None) -> None:
-        content = [line for line in f]
-        self._map_comments("".join(content))
-
-        return super().read_file(content, source)
+        content = self._translate_comments([line for line in f])
+        return super().read_file(content.splitlines(), source)
 
     def write(
-        self, fp: SupportsWrite[str], space_around_delimiters: bool = True
+        self,
+        fp: SupportsWrite[str],
+        space_around_delimiters: bool = True,
     ) -> None:
-        # Early exit if the config was never loaded with comments (from_dict/run-time)
-        if self._comment_map is None:
-            return super().write(fp, space_around_delimiters)
-
         capture_output = StringIO()
         super().write(capture_output, space_around_delimiters)
-
-        self._merge_deleted_keys()
-
         rendered_output = self._restore_comments(capture_output.getvalue())
 
         fp.write(rendered_output)
 
-    def _fileload(
-        self,
-        filepath: StrOrBytesPath,
-        encoding: str | None = None,
-    ) -> str | None:
-        """Load a file if it exists."""
-        try:
-            with open(filepath, encoding=encoding) as infile:
-                return infile.read()
-        except OSError:
-            return None
+    def _translate_comments(self, content: list[str]) -> str:
+        """Translate comments to section options while storing header."""
+        seen_section = False
 
-    def _is_comment(self, line: str) -> bool:
-        """True if the line is a valid ini comment."""
-        return bool(COMMENT_PTN.search(line))
+        translated_lines = []
+        for idx, line in enumerate(content):
+            if SECTION_PATTERN.match(line):
+                seen_section = True
 
-    def _is_empty(self, line: str) -> bool:
-        """True if line is just whitesspace."""
-        return not bool(re.sub(r"\s*", "", line))
+            if not seen_section:
+                # Assume lines before a section are comments. If they are not
+                # the parent class will raise the needed exceptions for an
+                # invalid config format.
+                self._headers.append(line)
 
-    def _is_section(self, line: str) -> bool:
-        """True if line is a section."""
-        return bool(SECTION_PTN.search(line))
+            elif COMMENT_PATTERN.match(line):
+                # Translate the comment into an option for the section. These
+                # are handled by the parent and retain order of insertion.
+                line = f"__comment_{self._commentprefix}{idx}={line.lstrip()}"
 
-    def _get_key(self, line: str) -> str:
-        """
-        Return the key of a line trimmed of leading/trailing whitespace.
+            elif KEY_PATTERN.match(line) or SECTION_PATTERN.match(line):
+                # Strip the left whitespace from sections and keys. This will
+                # leave only multiline values with leading whitespace preventing
+                # the saved output from incorrectly indenting after a comment
+                # when the loaded config contains indented sections.
+                line = line.lstrip()
 
-        Respects both `=` and `:` delimiters, uses which happens first. If
-        the line contains neither, the entire line is returned.
-        """
-        # Find which of the two assigment delimiters is used first
-        matches = KEY_PTN.match(line)
-        return matches.group(1).strip() if matches else line.strip()
+            translated_lines.append(line)
 
-    def _map_comments(self, content: str | None) -> None:
-        """Map comments of config internally for restoration on write."""
-        # The map holds comments that happen under the given key
-        # @@header is an arbatrary section and key assigned to
-        # capture the top of a file or section.
-        section = "@@header"
-        key = "@@header"
+        # If additional configuration files are loaded, comments may end up sharing
+        # idx values which will clobber previously loaded comments.
+        self._commentprefix += 1
 
-        content_lines = content.split("\n") if content is not None else []
-        comment_lines: list[str] = []
-        comment_map = self._comment_map if self._comment_map else {}
-
-        for line in content_lines:
-            # Define the section or use existing
-            comment_map[section] = comment_map.get(section, {})
-
-            if self._is_comment(line):
-                comment_lines.append(line)
-
-            # We allow empty lines to be ignored giving the library
-            # control over general line spacing format.
-            elif not self._is_empty(line):
-                # Update the current section, clear, and start again
-                comment_map[section][key] = comment_lines.copy()
-                comment_lines.clear()
-
-                # Figure out if we have a key or a new section
-                if self._is_section(line):
-                    # TODO: Probably should rename this method. _get_token() ?
-                    section = self._get_key(line)
-                    key = "@@header"
-                else:
-                    key = self.optionxform(self._get_key(line))
-
-        # Capture all trailing lines in comment_lines on exit of loop
-        comment_map[section][key] = comment_lines.copy()
-
-        self._comment_map = comment_map
+        return "".join(translated_lines)
 
     def _restore_comments(self, content: str) -> str:
-        """Restore comments from internal map."""
-        if self._comment_map is None:
-            # This should never be needed
-            return content
-
-        section = "@@header"
-        key = "@@header"
+        """Restore comment options to comments."""
         # Apply the headers before parsing the config lines
-        rendered: list[str] = self._comment_map[section].get(key, [])
+        rendered = [] + self._headers
 
         for line in content.splitlines():
-            # Order of reconstruction is config-line then any comments
-            rendered.append(line)
+            comment_match = COMMENT_OPTION_PATTERN.match(line)
+            if comment_match:
+                line = comment_match.group(2)
 
-            if self._is_section(line):
-                section = self._get_key(line)
-                key = "@@header"
-            else:
-                key = self._get_key(line)
+            rendered.append(line + "\n")
 
-            rendered.extend(self._comment_map.get(section, {}).get(key, []))
-
-        return "\n".join(rendered)
-
-    def _merge_deleted_keys(self) -> None:
-        """Find and merges comments of deleted keys up the comment_map tree."""
-        if self._comment_map is None:
-            return
-
-        orphaned_comments: list[str] = []
-        # Walk the sections and keys backward so we merge 'up'.
-        for section in list(self._comment_map.keys())[::-1]:
-            section_mch = SECTION_PTN.match(section)
-            if section_mch is None:
-                # Strange that we have a section value that isn't a valid section
-                continue
-
-            for key in list(self._comment_map[section])[::-1]:
-                # Key no longer exists, gather comments and loop upward
-                if key != "@@header" and not self.has_option(section_mch.group(1), key):
-                    # Comments need to be stored in reverse order to avoid
-                    # needing to insert into front of list
-                    orphaned_comments.extend(self._comment_map[section].pop(key)[::-1])
-
-                elif section_mch.group(1) in self.keys():
-                    # Drop everything in the next key that exists
-                    # If the section is gone carry all comments up to bottom of next
-                    # Reverve the order as they were added in reverse
-                    self._comment_map[section][key].extend(orphaned_comments[::-1])
-                    orphaned_comments.clear()
-
-            # Remove sections that should now be empty
-            if not section_mch.group(1) in self.keys():
-                self._comment_map.pop(section)
-
-        # All remaining orphans moved to the top of the file
-        self._comment_map["@@header"]["@@header"].extend(orphaned_comments[::-1])
+        return "".join(rendered)

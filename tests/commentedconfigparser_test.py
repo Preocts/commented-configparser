@@ -1,57 +1,12 @@
 from __future__ import annotations
 
-import json
 from io import StringIO
 from pathlib import Path
 
 import pytest
 
+from commentedconfigparser import commentedconfigparser
 from commentedconfigparser.commentedconfigparser import CommentedConfigParser
-
-CONFIG_W_COMMENTS = "tests/withcomments.ini"
-CONFIG_W_COMMENTS_STR = Path("tests/withcomments.ini").read_text()
-EXPECTED_MAP = {
-    "@@header": {
-        "@@header": [
-            "# Welcome to our config",
-        ],
-    },
-    "[DEFAULT]": {
-        "@@header": [
-            "# This value has some meaning to someone",
-        ],
-        "foo": [
-            "# Make sure to add this when you need it",
-        ],
-        "trace": [],
-        "logging": [
-            "; This is a comment as well",
-            "    # so we need to track all of them",
-            "\t; and many could be between things",
-        ],
-    },
-    "[NEW SECTION]": {
-        "@@header": [],
-        "foo": [
-            "# Unique foo",
-        ],
-        "multi-line": [],
-        "value01": [],
-        "value02": [],
-        "value03": [],
-        "closing": [
-            "# Trailing comment",
-        ],
-    },
-}
-
-# This is how we expect the withcomments.ini to re-render
-# Use \t to render tabs. Will *not* match input file
-EXPECTED_STR = Path("tests/expected.ini").read_text()
-
-
-def test_assert_class_var_is_always_empty() -> None:
-    assert CommentedConfigParser._comment_map is None
 
 
 @pytest.mark.parametrize(
@@ -67,29 +22,10 @@ def test_assert_class_var_is_always_empty() -> None:
         ("  \t", False),
     ),
 )
-def test_is_comment(line: str, expected: bool) -> None:
-    cc = CommentedConfigParser()
+def test_comment_pattern(line: str, expected: bool) -> None:
+    result = commentedconfigparser.COMMENT_PATTERN.match(line)
 
-    result = cc._is_comment(line)
-
-    assert result is expected
-
-
-@pytest.mark.parametrize(
-    ("line", "expected"),
-    (
-        ("  \tThis is a comment", False),
-        ("", True),
-        ("  \t", True),
-        ("  ", True),
-    ),
-)
-def test_is_empty(line: str, expected: bool) -> None:
-    cc = CommentedConfigParser()
-
-    result = cc._is_empty(line)
-
-    assert result is expected
+    assert bool(result) is expected
 
 
 @pytest.mark.parametrize(
@@ -99,15 +35,14 @@ def test_is_empty(line: str, expected: bool) -> None:
         ("\t[SECTION", False),
         ("    [SECTION]", True),
         ("SECTION]", False),
+        ("# [SECTION]", False),
         ("", False),
     ),
 )
-def test_is_section(line: str, expected: bool) -> None:
-    cc = CommentedConfigParser()
+def test_section_pattern(line: str, expected: bool) -> None:
+    result = commentedconfigparser.SECTION_PATTERN.match(line)
 
-    result = cc._is_section(line)
-
-    assert result is expected
+    assert bool(result) is expected
 
 
 @pytest.mark.parametrize(
@@ -119,25 +54,39 @@ def test_is_section(line: str, expected: bool) -> None:
         ("key:=value", "key"),
         ("key : value", "key"),
         ("key:value", "key"),
-        ("\tkey with spaces=value", "key with spaces"),
-        ("\tkey: value with = in it", "key"),  # both delimiters
-        ("\tkey=val:ues", "key"),  # both delimiter equal spacing
-        ("\t[SECTION name]", "[SECTION name]"),
-        ("", ""),
+        ("\tkey with spaces=value", "\tkey with spaces"),
+        ("\tkey: value with = in it", "\tkey"),  # both delimiters
+        ("\tkey=val:ues", "\tkey"),  # both delimiter equal spacing
     ),
 )
-def test_get_line_key(line: str, expected: str) -> None:
-    cc = CommentedConfigParser()
+def test_key_pattern(line: str, expected: str) -> None:
 
-    result = cc._get_key(line)
+    match = commentedconfigparser.KEY_PATTERN.match(line)
 
-    assert result == expected
+    assert match
+    assert match.group(1) == expected
+
+
+@pytest.mark.parametrize(
+    ("line", "expected"),
+    (
+        ("__comment_123 = # Some comment", "# Some comment"),
+        ("__comment_1 = \t\t# Some comment", "\t\t# Some comment"),
+        ("__comment_123 =", ""),
+    ),
+)
+def test_comment_option_pattern(line: str, expected: str) -> None:
+
+    match = commentedconfigparser.COMMENT_OPTION_PATTERN.match(line)
+
+    assert match
+    assert match.group(2) == expected
 
 
 def test_regression_read_loads_normally_list() -> None:
     cc = CommentedConfigParser()
 
-    read = cc.read([CONFIG_W_COMMENTS, "notfoundatall.ini"])
+    read = cc.read(["tests/regression_original_input.ini", "notfoundatall.ini"])
 
     assert len(read) == 1
 
@@ -145,7 +94,7 @@ def test_regression_read_loads_normally_list() -> None:
 def test_regression_read_loads_normally_single_file() -> None:
     cc = CommentedConfigParser()
 
-    read = cc.read(CONFIG_W_COMMENTS)
+    read = cc.read("tests/regression_original_input.ini")
 
     assert len(read) == 1
 
@@ -153,7 +102,7 @@ def test_regression_read_loads_normally_single_file() -> None:
 def test_regression_read_file_normally() -> None:
     cc = CommentedConfigParser()
 
-    with open(CONFIG_W_COMMENTS) as file:
+    with open("tests/regression_original_input.ini") as file:
         cc.read_file(file)
 
     assert cc.get("NEW SECTION", "closing") == "0"
@@ -177,82 +126,13 @@ def test_regression_read_dict_loads_normally() -> None:
 
 def test_regression_write_normally() -> None:
     cc = CommentedConfigParser()
-    expected = "[TEST]\ntest=pass\n"
+    expected = "[TEST]\ntest=pass\n\n"
     cc.read_string(expected)
     mock_file = StringIO()
 
     cc.write(mock_file, space_around_delimiters=False)
 
     assert mock_file.getvalue() == expected
-
-
-def test_fileload() -> None:
-    cc = CommentedConfigParser()
-
-    result = cc._fileload("tests/withcomments.ini")
-
-    assert result
-    assert "[NEW SECTION]" in result
-
-
-def test_fileload_silently_fails() -> None:
-    cc = CommentedConfigParser()
-
-    result = cc._fileload("tests/notherefile.ini")
-
-    assert result is None
-
-
-def test_map_comments() -> None:
-    cc = CommentedConfigParser()
-    expected = json.dumps(EXPECTED_MAP)
-
-    cc._map_comments(CONFIG_W_COMMENTS_STR)
-    assert cc._comment_map
-    result = json.dumps(cc._comment_map)
-
-    assert result == expected
-
-
-def test_read_file_captures_comments() -> None:
-    cc = CommentedConfigParser()
-    expected = json.dumps(EXPECTED_MAP)
-
-    with open(CONFIG_W_COMMENTS) as file:
-        cc.read_file(file)
-    result = json.dumps(cc._comment_map)
-
-    assert result == expected
-
-
-def test_read_captures_comments_single_file() -> None:
-    cc = CommentedConfigParser()
-    expected = json.dumps(EXPECTED_MAP)
-
-    cc.read(CONFIG_W_COMMENTS)
-    result = json.dumps(cc._comment_map)
-
-    assert result == expected
-
-
-def test_read_string_captures_comments() -> None:
-    cc = CommentedConfigParser()
-    expected = json.dumps(EXPECTED_MAP)
-
-    cc.read_string(CONFIG_W_COMMENTS_STR)
-    result = json.dumps(cc._comment_map)
-
-    assert result == expected
-
-
-def test_write_with_comments_single_file() -> None:
-    cc = CommentedConfigParser()
-    cc.read_string(CONFIG_W_COMMENTS_STR)
-    mock_file = StringIO()
-
-    cc.write(mock_file, space_around_delimiters=False)
-
-    assert mock_file.getvalue() == EXPECTED_STR
 
 
 def test_write_with_no_comments() -> None:
@@ -266,141 +146,56 @@ def test_write_with_no_comments() -> None:
     assert mock_file.getvalue() == expected
 
 
-def test_merge_deleted_keys_no_map() -> None:
+@pytest.mark.parametrize(
+    ("ini_in", "ini_expected"),
+    (
+        (["header_input.ini"], "header_expected.ini"),
+        (["pydocs_input.ini"], "pydocs_expected.ini"),
+        (["regression_original_input.ini"], "regression_original_expected.ini"),
+        (["multi02_input.ini", "multi01_input.ini"], "multi_expected.ini"),
+    ),
+)
+def test_reading_and_writing_config_files(
+    ini_in: list[str],
+    ini_expected: str,
+    tmp_path: Path,
+) -> None:
+    tmp_file = tmp_path / "test_reading_and_writing.ini"
+    expected = (Path("tests") / ini_expected).read_text(encoding="utf-8")
+    config = CommentedConfigParser()
+    config.read([Path("tests") / file for file in ini_in])
+
+    with open(tmp_file, "w", encoding="utf-8") as outfile:
+        config.write(outfile)
+
+    with open(tmp_file, encoding="utf-8") as infile:
+        contents = infile.read()
+
+    assert contents == expected
+
+
+def test_issue_46_duplicating_sections(tmp_path: Path) -> None:
+    # https://github.com/Preocts/commented-configparser/issues/46
+    tmp_file = tmp_path / "issue46_test_file.ini"
+    starting_config = "[example]\nfoo = 0\n"
+    expected = "[example]\nfoo = 9\n\n"
+    tmp_file.write_text(starting_config, "utf-8")
     cc = CommentedConfigParser()
+    cc.read(tmp_file)
 
-    cc._merge_deleted_keys()
+    # v1 bug which duplicated sections when explicily writing the config back
+    # to file in a loop which was using .set(...)
+    for idx in range(10):
+        cc.set("example", "foo", str(idx))
+        with open(tmp_file, "w", encoding="utf-8") as outfile:
+            cc.write(outfile)
 
-    assert True  # The goal here is no KeyErrors raised looking for @@header
-
-
-def test_merge_deleted_keys() -> None:
-    cc = CommentedConfigParser()
-    cc.read_dict({"TEST": {}})
-    cc._comment_map = {
-        "@@header": {
-            "@@header": [],
-        },
-        "[TEST]": {
-            "@@header": [],
-            "test": [
-                "# Test comment",
-            ],
-        },
-    }
-    expected = {
-        "@@header": {
-            "@@header": [],
-        },
-        "[TEST]": {
-            "@@header": [
-                "# Test comment",
-            ],
-        },
-    }
-
-    cc._merge_deleted_keys()
-
-    assert cc._comment_map == expected
+    assert tmp_file.read_text("utf-8") == expected
 
 
-def test_merge_multiple_deleted_keys_retain_order() -> None:
-    cc = CommentedConfigParser()
-    cc.read_dict({"TEST": {"foo": "bar"}})
-    cc._comment_map = {
-        "@@header": {
-            "@@header": [],
-        },
-        "[TEST]": {
-            "@@header": [],
-            "foo": [
-                "# This is foo's comment",
-            ],
-            "test": [
-                "# Test comment line 1",
-                "# Test comment line 2",
-            ],
-            "removed": [
-                "# Test comment line 3",
-                "# Test comment line 4",
-            ],
-        },
-    }
-    expected = {
-        "@@header": {
-            "@@header": [],
-        },
-        "[TEST]": {
-            "@@header": [],
-            "foo": [
-                "# This is foo's comment",
-                "# Test comment line 1",
-                "# Test comment line 2",
-                "# Test comment line 3",
-                "# Test comment line 4",
-            ],
-        },
-    }
+def test_regression_keys_are_treated_as_case_insensitive() -> None:
+    configdict = {"default": {"FoO": "BAR"}}
+    config = CommentedConfigParser()
+    config.read_dict(configdict)
 
-    cc._merge_deleted_keys()
-
-    assert cc._comment_map == expected
-
-
-def test_write_with_comments_single_file_remove_key() -> None:
-    cc = CommentedConfigParser()
-    mod_expected = EXPECTED_STR.replace("foo=bar\n", "", 1)
-    cc.read_string(CONFIG_W_COMMENTS_STR)
-    mock_file = StringIO()
-
-    cc.remove_option("DEFAULT", "foo")
-    cc.write(mock_file, space_around_delimiters=False)
-
-    assert mock_file.getvalue() == mod_expected
-
-
-def test_restore_comments_no_comments() -> None:
-    cc = CommentedConfigParser()
-
-    result = cc._restore_comments("This is only a test")
-
-    assert result == "This is only a test"
-
-
-def test_merge_deleted_sections() -> None:
-    cc = CommentedConfigParser()
-    cc.read_dict({})
-    cc._comment_map = {
-        "@@header": {
-            "@@header": [],
-        },
-        "[TEST]": {
-            "@@header": [],
-            "foo": [
-                "# This is foo's comment",
-            ],
-            "test": [
-                "# Test comment line 1",
-                "# Test comment line 2",
-            ],
-            "removed": [
-                "# Test comment line 3",
-                "# Test comment line 4",
-            ],
-        },
-    }
-    expected = {
-        "@@header": {
-            "@@header": [
-                "# This is foo's comment",
-                "# Test comment line 1",
-                "# Test comment line 2",
-                "# Test comment line 3",
-                "# Test comment line 4",
-            ],
-        },
-    }
-
-    cc._merge_deleted_keys()
-
-    assert cc._comment_map == expected
+    assert config.get("default", "Foo") == "BAR"
