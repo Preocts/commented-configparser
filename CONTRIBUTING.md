@@ -45,7 +45,7 @@ The following steps outline how to install this repo for local development.
 ### Clone repo
 
 ```console
-git clone https://github.com/preocts/commented-configparser
+git clone https://github.com/Preocts/commented-configparser
 
 cd commented-configparser
 ```
