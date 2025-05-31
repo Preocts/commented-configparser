@@ -37,7 +37,7 @@ class CommentedConfigParser(ConfigParser):
             filenames = [filenames]
 
         # This only exists in 3.10+ and assists with unifying encoding.
-        if hasattr(io, "text_encoding"):
+        if hasattr(io, "text_encoding"):  # pragma: no cover
             encoding = io.text_encoding(encoding)
 
         read_ok = []

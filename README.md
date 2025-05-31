@@ -7,6 +7,11 @@
 
 # commented-configparser
 
+- [Contributing Guide and Developer Setup Guide](./CONTRIBUTING.md)
+- [License: MIT](./LICENSE)
+
+---
+
 A custom ConfigParser class that preserves comments and option casing when writing loaded config out.
 
 This library gives you a custom class of the standard library's `configparser.ConfigParger` which will preserve the comments of a loaded config file when writing that file back out.
