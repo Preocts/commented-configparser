@@ -1,6 +1,6 @@
 temp_*
 .env
-venv/
+.venv/
 *egg-info/
 .tox/
 .coverage
