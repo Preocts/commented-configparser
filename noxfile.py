@@ -4,6 +4,7 @@ import os
 import pathlib
 import shutil
 import sys
+from functools import partial
 
 import nox
 
@@ -11,11 +12,9 @@ import nox
 MODULE_NAME = "commentedconfigparser"
 TESTS_PATH = "tests"
 COVERAGE_FAIL_UNDER = 100
-DEFAULT_PYTHON_VERSION = "3.12"
-VENV_PATH = "venv"
-REQUIREMENT_IN_FILES = [
-    pathlib.Path("requirements/requirements.in"),
-]
+VENV_PATH = "./.venv"
+LINT_PATH = "./src"
+REQUIREMENTS_PATH = "./requirements"
 
 # What we allowed to clean (delete)
 CLEANABLE_TARGETS = [
@@ -32,110 +31,148 @@ CLEANABLE_TARGETS = [
     "./**/*.pyo",
 ]
 
-
 # Define the default sessions run when `nox` is called on the CLI
-nox.options.sessions = [
-    "tests_with_coverage",
-    "coverage_combine_and_report",
-    "mypy_check",
-]
+nox.options.default_venv_backend = "virtualenv"
+nox.options.sessions = ["lint", "test"]
 
 
-@nox.session(
-    python=["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"],
-)
-def tests_with_coverage(session: nox.Session) -> None:
-    """Run unit tests with coverage saved to partial file."""
+@nox.session()
+def dev(session: nox.Session) -> None:
+    """Setup a development environment by creating the venv and installs dependencies."""
+    # Use the active environement if it exists, otherwise create a new one
+    venv_path = os.environ.get("VIRTUAL_ENV", VENV_PATH)
+
+    if sys.platform == "win32":
+        venv_path = f"{venv_path}/Scripts"
+        activate_command = f"{venv_path}/activate"
+    else:
+        venv_path = f"{venv_path}/bin"
+        activate_command = f"source {venv_path}/activate"
+
+    if not os.path.exists(VENV_PATH):
+        session.run("python", "-m", "venv", VENV_PATH, "--upgrade-deps")
+
+    python = partial(session.run, f"{venv_path}/python", "-m")
+    contraint = ("--constraint", f"{REQUIREMENTS_PATH}/constraints.txt")
+
+    for requirement_file in get_requirement_files():
+        python("pip", "install", "-r", requirement_file, *contraint, external=True)
+
+    python("pip", "install", "--editable", ".", *contraint, external=True)
+
+    python("pip", "install", "pre-commit", external=True)
+    session.run(f"{venv_path}/pre-commit", "install", external=True)
+
+    if not os.environ.get("VIRTUAL_ENV"):
+        session.log(f"\n\nRun '{activate_command}' to enter the virtual environment.\n")
+
+
+@nox.session(name="test")
+def run_tests_with_coverage(session: nox.Session) -> None:
+    """Run pytest with coverage, outputs console report and json."""
     print_standard_logs(session)
 
-    session.install(".[test]")
-    session.run("coverage", "run", "-p", "-m", "pytest", TESTS_PATH)
+    contraint = ("--constraint", f"{REQUIREMENTS_PATH}/constraints.txt")
+
+    session.install(".[test]", *contraint)
+
+    coverage = partial(session.run, "python", "-m", "coverage")
+
+    coverage("erase")
+
+    if "partial-coverage" in session.posargs:
+        coverage("run", "--parallel-mode", "--module", "pytest", TESTS_PATH)
+    else:
+        coverage("run", "--module", "pytest", TESTS_PATH)
+        coverage("report", "--show-missing", f"--fail-under={COVERAGE_FAIL_UNDER}")
+        coverage("json")
 
 
-@nox.session(python=DEFAULT_PYTHON_VERSION)
-def coverage_combine_and_report(session: nox.Session) -> None:
-    """Combine all coverage partial files and generate JSON report."""
+@nox.session()
+def coverage_combine(session: nox.Session) -> None:
+    """CI: Combine parallel-mode coverage files and produce reports."""
     print_standard_logs(session)
 
-    fail_under = f"--fail-under={COVERAGE_FAIL_UNDER}"
+    contraint = ("--constraint", f"{REQUIREMENTS_PATH}/constraints.txt")
 
-    session.install(".[test]")
-    session.run("python", "-m", "coverage", "combine")
-    session.run("python", "-m", "coverage", "report", "-m", fail_under)
-    session.run("python", "-m", "coverage", "json")
+    session.install("-r", f"{REQUIREMENTS_PATH}/requirements-test.txt", *contraint)
+
+    coverage = partial(session.run, "python", "-m", "coverage")
+    coverage("combine")
+    coverage("report", "--show-missing", f"--fail-under={COVERAGE_FAIL_UNDER}")
+    coverage("json")
 
 
-@nox.session(python=DEFAULT_PYTHON_VERSION)
-def mypy_check(session: nox.Session) -> None:
-    """Run mypy against package and all required dependencies."""
+@nox.session(name="lint")
+def run_linters_and_formatters(session: nox.Session) -> None:
+    """Run code formatters, linters, and type checking against all files."""
     print_standard_logs(session)
 
-    session.install(".")
-    session.install("mypy")
-    session.run("mypy", "-p", MODULE_NAME, "--no-incremental")
+    contraint = ("--constraint", f"{REQUIREMENTS_PATH}/constraints.txt")
+    session.install(".[dev]", *contraint)
+
+    python = partial(session.run, "python", "-m")
+
+    # Handle anything tool that applies corrections first.
+    python(
+        "isort",
+        "--verbose",
+        "--force-single-line-imports",
+        "--profile",
+        "black",
+        "--add-import",
+        "from __future__ import annotations",
+        LINT_PATH,
+    )
+    python("black", "--verbose", LINT_PATH)
+
+    # Linters: aka, things that yell but want you to fix things
+    python("flake8", "--show-source", "--verbose", LINT_PATH)
+    python("mypy", "--no-incremental", "--package", MODULE_NAME)
 
 
-@nox.session(python=False)
-def coverage(session: nox.Session) -> None:
-    """Generate a coverage report. Does not use a venv."""
-    session.run("coverage", "erase")
-    session.run("coverage", "run", "-m", "pytest", TESTS_PATH)
-    session.run("coverage", "report", "-m")
-
-
-@nox.session(python=DEFAULT_PYTHON_VERSION)
+@nox.session()
 def build(session: nox.Session) -> None:
-    """Build distrobution files."""
+    """Build distribution files."""
     print_standard_logs(session)
 
     session.install("build")
     session.run("python", "-m", "build")
 
 
-@nox.session(python=False)
-def install(session: nox.Session) -> None:
-    """Setup a development environment. Uses active venv if available, builds one if not."""
-    # Use the active environement if it exists, otherwise create a new one
-    venv_path = os.environ.get("VIRTUAL_ENV", VENV_PATH)
-
-    if sys.platform == "win32":
-        py_command = "py"
-        venv_path = f"{venv_path}/Scripts"
-        activate_command = f"{venv_path}/activate"
-    else:
-        py_command = f"python{DEFAULT_PYTHON_VERSION}"
-        venv_path = f"{venv_path}/bin"
-        activate_command = f"source {venv_path}/activate"
-
-    if not os.path.exists(VENV_PATH):
-        session.run(py_command, "-m", "venv", VENV_PATH)
-        session.run(f"{venv_path}/python", "-m", "pip", "install", "--upgrade", "pip")
-
-    session.run(f"{venv_path}/python", "-m", "pip", "install", "-e", ".[dev,test]")
-    session.run(f"{venv_path}/pre-commit", "install")
-
-    if not os.environ.get("VIRTUAL_ENV"):
-        session.log(f"\n\nRun '{activate_command}' to enter the virtual environment.\n")
-
-
-@nox.session(python=DEFAULT_PYTHON_VERSION)
-def update(session: nox.Session) -> None:
-    """Process requirement*.in files, updating only additions/removals."""
+@nox.session(name="update-deps")
+def update_deps(session: nox.Session) -> None:
+    """Process requirement*.txt files, updating only additions/removals."""
     print_standard_logs(session)
 
     session.install("pip-tools")
-    for filename in REQUIREMENT_IN_FILES:
-        session.run("pip-compile", "--no-emit-index-url", str(filename))
+    session.run(
+        "pip-compile",
+        "--strip-extras",
+        "--no-annotate",
+        "--no-emit-index-url",
+        "--output-file",
+        f"{REQUIREMENTS_PATH}/constraints.txt",
+        *get_requirement_files(),
+    )
 
 
-@nox.session(python=DEFAULT_PYTHON_VERSION)
-def upgrade(session: nox.Session) -> None:
-    """Process requirement*.in files and upgrade all libraries as possible."""
+@nox.session(name="upgrade-deps")
+def upgrade_deps(session: nox.Session) -> None:
+    """Process requirement*.txt files and upgrade all libraries as possible."""
     print_standard_logs(session)
 
     session.install("pip-tools")
-    for filename in REQUIREMENT_IN_FILES:
-        session.run("pip-compile", "--no-emit-index-url", "--upgrade", str(filename))
+    session.run(
+        "pip-compile",
+        "--strip-extras",
+        "--no-annotate",
+        "--no-emit-index-url",
+        "--upgrade",
+        "--output-file",
+        f"{REQUIREMENTS_PATH}/constraints.txt",
+        *get_requirement_files(),
+    )
 
 
 @nox.session(python=False)
@@ -158,3 +195,9 @@ def print_standard_logs(session: nox.Session) -> None:
     version = session.run("python", "--version", silent=True)
     session.log(f"Running from: {session.bin}")
     session.log(f"Running with: {version}")
+
+
+def get_requirement_files() -> list[pathlib.Path]:
+    """Get a list of requirement files matching "requirements*.txt"."""
+    glob = pathlib.Path(REQUIREMENTS_PATH).glob("requirements*.txt")
+    return [path for path in glob]
