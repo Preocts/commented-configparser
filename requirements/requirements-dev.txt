@@ -1,8 +1,13 @@
 # Development Requirements - linting, formatting, etc.
 
-pre-commit
-black
-mypy
+# Linting
 flake8
 flake8-builtins
 flake8-pep585
+
+# formatters
+black
+isort
+
+# type checking
+mypy
