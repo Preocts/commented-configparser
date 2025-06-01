@@ -1,4 +1,4 @@
-name: "Publish Python distribution to PyPI"
+name: "Publish Python distribution to PyPI Test"
 # Uses:
 # https://github.com/actions/setup-python : a26af69be951a213d495a4c3e4e4022e16d87065
 # https://github.com/actions/checkout : 11bd71901bbe5b1630ceea73d27597364c9af683
@@ -7,8 +7,9 @@ name: "Publish Python distribution to PyPI"
 # https://github.com/actions/pypa/gh-action-pypi-publish : 76f52bc884231f62b9a034ebfe128415bbaabdfc
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[a-z]+[0-9]+"
 
 jobs:
   build:
@@ -41,8 +42,8 @@ jobs:
     needs: ["build"]
     runs-on: "ubuntu-latest"
     environment:
-      name: "pypi"
-      url: "https://pypi.org/project/commented-configparser/"
+      name: "testpypi"
+      url: "https://test.pypi.org/project/commented-configparser/"
     permissions:
       id-token: "write"
 
@@ -57,5 +58,5 @@ jobs:
       - name: "Publish distribution to PyPI"
         uses: "pypa/gh-action-pypi-publish@76f52bc884231f62b9a034ebfe128415bbaabdfc"
         with:
-          repository-url: "https://upload.pypi.org/legacy/"
+          repository-url: "https://test.pypi.org/legacy/"
           verbose: true
