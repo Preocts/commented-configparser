@@ -23,7 +23,7 @@ from commentedconfigparser.commentedconfigparser import CommentedConfigParser
     ),
 )
 def test_comment_pattern(line: str, expected: bool) -> None:
-    result = commentedconfigparser.COMMENT_PATTERN.match(line)
+    result = commentedconfigparser._COMMENT_PATTERN.match(line)
 
     assert bool(result) is expected
 
@@ -40,7 +40,7 @@ def test_comment_pattern(line: str, expected: bool) -> None:
     ),
 )
 def test_section_pattern(line: str, expected: bool) -> None:
-    result = commentedconfigparser.SECTION_PATTERN.match(line)
+    result = commentedconfigparser._SECTION_PATTERN.match(line)
 
     assert bool(result) is expected
 
@@ -61,7 +61,7 @@ def test_section_pattern(line: str, expected: bool) -> None:
 )
 def test_key_pattern(line: str, expected: str) -> None:
 
-    match = commentedconfigparser.KEY_PATTERN.match(line)
+    match = commentedconfigparser._KEY_PATTERN.match(line)
 
     assert match
     assert match.group(1) == expected
@@ -77,7 +77,7 @@ def test_key_pattern(line: str, expected: str) -> None:
 )
 def test_comment_option_pattern(line: str, expected: str) -> None:
 
-    match = commentedconfigparser.COMMENT_OPTION_PATTERN.match(line)
+    match = commentedconfigparser._COMMENT_OPTION_PATTERN.match(line)
 
     assert match
     assert match.group(2) == expected

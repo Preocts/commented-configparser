@@ -16,10 +16,10 @@ if TYPE_CHECKING:
 
 __all__ = ["CommentedConfigParser"]
 
-COMMENT_PATTERN = re.compile(r"^\s*[#|;]\s*(.+)$")
-COMMENT_OPTION_PATTERN = re.compile(r"^(\s*)?__comment_\d+\s?[=|:]\s?(.*)$")
-KEY_PATTERN = re.compile(r"^(.+?)\s?[=|:].*$")
-SECTION_PATTERN = re.compile(r"^\s*\[(.+)\]\s*$")
+_COMMENT_PATTERN = re.compile(r"^\s*[#|;]\s*(.+)$")
+_COMMENT_OPTION_PATTERN = re.compile(r"^(\s*)?__comment_\d+\s?[=|:]\s?(.*)$")
+_KEY_PATTERN = re.compile(r"^(.+?)\s?[=|:].*$")
+_SECTION_PATTERN = re.compile(r"^\s*\[(.+)\]\s*$")
 
 
 class CommentedConfigParser(ConfigParser):
@@ -84,7 +84,7 @@ class CommentedConfigParser(ConfigParser):
 
         translated_lines = []
         for idx, line in enumerate(content):
-            if SECTION_PATTERN.match(line):
+            if _SECTION_PATTERN.match(line):
                 seen_section = True
 
             if not seen_section:
@@ -93,12 +93,12 @@ class CommentedConfigParser(ConfigParser):
                 # invalid config format.
                 self._headers.append(line)
 
-            elif COMMENT_PATTERN.match(line):
+            elif _COMMENT_PATTERN.match(line):
                 # Translate the comment into an option for the section. These
                 # are handled by the parent and retain order of insertion.
                 line = f"__comment_{self._commentprefix}{idx}={line.lstrip()}"
 
-            elif KEY_PATTERN.match(line) or SECTION_PATTERN.match(line):
+            elif _KEY_PATTERN.match(line) or _SECTION_PATTERN.match(line):
                 # Strip the left whitespace from sections and keys. This will
                 # leave only multiline values with leading whitespace preventing
                 # the saved output from incorrectly indenting after a comment
@@ -121,7 +121,7 @@ class CommentedConfigParser(ConfigParser):
             rendered += self._headers
 
         for line in content.splitlines():
-            comment_match = COMMENT_OPTION_PATTERN.match(line)
+            comment_match = _COMMENT_OPTION_PATTERN.match(line)
             if comment_match:
                 line = comment_match.group(2)
 
