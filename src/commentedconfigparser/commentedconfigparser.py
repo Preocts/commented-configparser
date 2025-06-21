@@ -76,11 +76,11 @@ class CommentedConfigParser(ConfigParser):
 
         # To save the pain of mirroring ConfigParser's __init__ these two
         # attributes are created in the instance here, when needed.
-        if not hasattr(self, "_headers"):
-            self._headers: list[str] = []
+        if not hasattr(self, "_CommentedConfigParser__header_block"):
+            self.__header_block: list[str] = []
 
-        if not hasattr(self, "_commentprefix"):
-            self._commentprefix = 0
+        if not hasattr(self, "_CommentedConfigParser__file_index"):
+            self.__file_index = 0
 
         translated_lines = []
         for idx, line in enumerate(content):
@@ -91,12 +91,12 @@ class CommentedConfigParser(ConfigParser):
                 # Assume lines before a section are comments. If they are not
                 # the parent class will raise the needed exceptions for an
                 # invalid config format.
-                self._headers.append(line)
+                self.__header_block.append(line)
 
             elif _COMMENT_PATTERN.match(line):
                 # Translate the comment into an option for the section. These
                 # are handled by the parent and retain order of insertion.
-                line = f"__comment_{self._commentprefix}{idx}={line.lstrip()}"
+                line = f"__comment_{self.__file_index}{idx}={line.lstrip()}"
 
             elif _KEY_PATTERN.match(line) or _SECTION_PATTERN.match(line):
                 # Strip the left whitespace from sections and keys. This will
@@ -109,7 +109,7 @@ class CommentedConfigParser(ConfigParser):
 
         # If additional configuration files are loaded, comments may end up sharing
         # idx values which will clobber previously loaded comments.
-        self._commentprefix += 1
+        self.__file_index += 1
 
         return "".join(translated_lines)
 
@@ -117,8 +117,8 @@ class CommentedConfigParser(ConfigParser):
         """Restore comment options to comments."""
         # Apply the headers before parsing the config lines
         rendered = []
-        if hasattr(self, "_headers"):
-            rendered += self._headers
+        if hasattr(self, "_CommentedConfigParser__header_block"):
+            rendered += self.__header_block
 
         for line in content.splitlines():
             comment_match = _COMMENT_OPTION_PATTERN.match(line)
