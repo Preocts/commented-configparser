@@ -127,4 +127,7 @@ class CommentedConfigParser(ConfigParser):
 
             rendered.append(line + "\n")
 
+        # Remove extra trailing newline
+        rendered[-1] = rendered[-1].rstrip()
+
         return "".join(rendered)
