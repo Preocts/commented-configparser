@@ -12,9 +12,12 @@
 
 ---
 
-A custom ConfigParser class that preserves comments and option casing when writing loaded config out.
+A custom ConfigParser class that preserves comments and most formatting when
+writing loaded config out.
 
-This library gives you a custom class of the standard library's `configparser.ConfigParger` which will preserve the comments of a loaded config file when writing that file back out.
+This library gives you a custom class of the standard library's
+`configparser.ConfigParger` which will preserve the comments of a loaded config
+file when writing that file back out.
 
 ---
 
@@ -58,7 +61,12 @@ with open("myconfig.ini", "w") as savefile:
 
 ## Results
 
-We favor the line spacing choices of the `ConfigParser` class so the input format may not be preserved completely. However, the comments will be preserved.
+There is the attempt to retain the original format. Known formats that will not
+be preserved:
+
+1. Indents will not be preserved outside of multi-line values
+2. Spacing around assignments will be normalized.
+3. Casing of all options will be written as lowercase.
 
 ### Before
 
@@ -83,7 +91,6 @@ multi-line=
 	value03
 closing=0
 # Trailing comment
-
 ```
 
 ### After
@@ -97,9 +104,10 @@ foo = bar
 trace = false
 logging = true
 ; This is a comment as well
-# so we need to track all of them
-; and many could be between things
 
+# so we need to track all of them
+
+; and many could be between things
 [NEW SECTION]
 # Another comment
 multi-line =
@@ -108,5 +116,4 @@ multi-line =
 	value03
 closing = 0
 # Trailing comment
-
 ```

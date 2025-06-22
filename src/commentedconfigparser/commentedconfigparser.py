@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 __all__ = ["CommentedConfigParser"]
 
 _COMMENT_PATTERN = re.compile(r"^\s*[#|;]\s*(.*)$")
+_BLANK_LINE_PATTERN = re.compile(r"^\s*$")
 _COMMENT_OPTION_PATTERN = re.compile(r"^(\s*)?__comment_\d+\s?[=|:]\s?(.*)$")
 _KEY_PATTERN = re.compile(r"^(.+?)\s?[=|:].*$")
 _SECTION_PATTERN = re.compile(r"^\s*\[(.+)\]\s*$")
@@ -98,6 +99,11 @@ class CommentedConfigParser(ConfigParser):
                 # are handled by the parent and retain order of insertion.
                 line = f"__comment_{self.__file_index}{idx}={line.lstrip()}"
 
+            elif _BLANK_LINE_PATTERN.match(line):
+                # Blank lines cannot be stripped or the newline char will
+                # be lost which causes issues downstream.
+                line = f"__comment_{self.__file_index}{idx}={line}"
+
             elif _KEY_PATTERN.match(line) or _SECTION_PATTERN.match(line):
                 # Strip the left whitespace from sections and keys. This will
                 # leave only multiline values with leading whitespace preventing
@@ -121,13 +127,14 @@ class CommentedConfigParser(ConfigParser):
             rendered += self.__header_block
 
         for line in content.splitlines():
+            if not line:
+                # Skip the provided empty lines and use our own instead
+                continue
+
             comment_match = _COMMENT_OPTION_PATTERN.match(line)
             if comment_match:
                 line = comment_match.group(2)
 
             rendered.append(line + "\n")
-
-        # Remove extra trailing newline
-        rendered[-1] = rendered[-1].rstrip()
 
         return "".join(rendered)
