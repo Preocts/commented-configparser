@@ -58,7 +58,15 @@ class CommentedConfigParser(ConfigParser):
 
     def read_file(self, f: Iterable[str], source: str | None = None) -> None:
         content = self._translate_comments([line for line in f])
-        return super().read_file(content.splitlines(), source)
+        self.__is_reading = True
+        super().read_file(content.splitlines(), source)
+        self.__is_reading = False
+
+    def optionxform(self, optionstr: str) -> str:
+        if hasattr(self, "_CommentedConfigParser__is_reading") and self.__is_reading:
+            return optionstr
+
+        return super().optionxform(optionstr)
 
     def write(
         self,
