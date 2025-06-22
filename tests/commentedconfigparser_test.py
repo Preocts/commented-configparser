@@ -20,6 +20,8 @@ from commentedconfigparser.commentedconfigparser import CommentedConfigParser
         ("  \tThis is a comment", False),
         ("", False),
         ("  \t", False),
+        ("#", True),
+        ("#\t", True),
     ),
 )
 def test_comment_pattern(line: str, expected: bool) -> None:
@@ -149,6 +151,7 @@ def test_write_with_no_comments() -> None:
 @pytest.mark.parametrize(
     ("ini_in", "ini_expected"),
     (
+        (["empty_comments_input.ini"], "empty_comments_expected.ini"),
         (["header_input.ini"], "header_expected.ini"),
         (["pydocs_input.ini"], "pydocs_expected.ini"),
         (["regression_original_input.ini"], "regression_original_expected.ini"),

@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 __all__ = ["CommentedConfigParser"]
 
-_COMMENT_PATTERN = re.compile(r"^\s*[#|;]\s*(.+)$")
+_COMMENT_PATTERN = re.compile(r"^\s*[#|;]\s*(.*)$")
 _COMMENT_OPTION_PATTERN = re.compile(r"^(\s*)?__comment_\d+\s?[=|:]\s?(.*)$")
 _KEY_PATTERN = re.compile(r"^(.+?)\s?[=|:].*$")
 _SECTION_PATTERN = re.compile(r"^\s*\[(.+)\]\s*$")
