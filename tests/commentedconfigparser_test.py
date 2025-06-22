@@ -128,7 +128,7 @@ def test_regression_read_dict_loads_normally() -> None:
 
 def test_regression_write_normally() -> None:
     cc = CommentedConfigParser()
-    expected = "[TEST]\ntest=pass\n\n"
+    expected = "[TEST]\ntest=pass\n"
     cc.read_string(expected)
     mock_file = StringIO()
 
@@ -139,7 +139,7 @@ def test_regression_write_normally() -> None:
 
 def test_write_with_no_comments() -> None:
     cc = CommentedConfigParser()
-    expected = "[TEST]\ntest=pass\n\n"
+    expected = "[TEST]\ntest=pass\n"
     cc.read_dict({"TEST": {"test": "pass"}})
     mock_file = StringIO()
 
@@ -181,7 +181,7 @@ def test_issue_46_duplicating_sections(tmp_path: Path) -> None:
     # https://github.com/Preocts/commented-configparser/issues/46
     tmp_file = tmp_path / "issue46_test_file.ini"
     starting_config = "[example]\nfoo = 0\n"
-    expected = "[example]\nfoo = 9\n\n"
+    expected = "[example]\nfoo = 9\n"
     tmp_file.write_text(starting_config, "utf-8")
     cc = CommentedConfigParser()
     cc.read(tmp_file)
