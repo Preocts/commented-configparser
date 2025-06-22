@@ -66,7 +66,6 @@ be preserved:
 
 1. Indents will not be preserved outside of multi-line values
 2. Spacing around assignments will be normalized.
-3. Casing of all options will be written as lowercase.
 
 ### Before
 
@@ -85,7 +84,7 @@ logging=true
 	; and many could be between things
 [NEW SECTION]
 # Another comment
-multi-line=
+multiLine=
 	value01
 	value02
 	value03
@@ -110,7 +109,7 @@ logging = true
 ; and many could be between things
 [NEW SECTION]
 # Another comment
-multi-line =
+multiLine =
 	value01
 	value02
 	value03

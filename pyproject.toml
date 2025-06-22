@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "commented-configparser"
 requires-python = ">=3.9"
-description = "Custom ConfigParser class that preserves comments in file when writing"
+description = "A custom ConfigParser class that preserves comments and most formatting when writing loaded config out."
 readme = "README.md"
 license = "MIT"
 authors = [
