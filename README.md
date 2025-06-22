@@ -62,7 +62,7 @@ with open("myconfig.ini", "w") as savefile:
 ## Results
 
 There is the attempt to retain the original format. Known formats that will not
-be preserved: 
+be preserved:
 
 1. Indents will not be preserved outside of multi-line values
 2. Spacing around assignments will be normalized.
