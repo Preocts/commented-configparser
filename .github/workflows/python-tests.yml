@@ -12,6 +12,8 @@ on:
   push:
     branches:
       - "main"
+  schedule:
+    - cron: "27 0 * * 1"
 
 jobs:
   settings:
