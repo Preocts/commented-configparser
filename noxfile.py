@@ -1,38 +1,21 @@
 from __future__ import annotations
 
 import os
+import functools
 import pathlib
 import shutil
-import sys
-from functools import partial
 
 import nox
 
 # Control factors for finding pieces of the module
 MODULE_NAME = "commentedconfigparser"
-TESTS_PATH = "tests"
-COVERAGE_FAIL_UNDER = 100
-VENV_PATH = "./.venv"
 LINT_PATH = "./src"
-REQUIREMENTS_PATH = "./requirements"
+TESTS_PATH = "./tests"
 
-LINTING_COMMANDS = (
-    (
-        "isort",
-        "--verbose",
-        "--force-single-line-imports",
-        "--profile",
-        "black",
-        "--add-import",
-        "from __future__ import annotations",
-        LINT_PATH,
-        TESTS_PATH,
-    ),
-    ("black", "--verbose", LINT_PATH, TESTS_PATH),
-    ("flake8", "--show-source", "--verbose", LINT_PATH, TESTS_PATH),
-    ("mypy", "--no-incremental", "--package", MODULE_NAME),
-    ("mypy", "--no-incremental", TESTS_PATH),
-)
+_file_python_version = pathlib.Path(".python-version").read_text()
+_uv_python_version = os.getenv("UV_PYTHON", "")
+# Favor the UV_PYTHON environment variable as this should override the .python-version
+PYTHON_VERSION = _uv_python_version or _file_python_version
 
 # What we allowed to clean (delete)
 CLEANABLE_TARGETS = [
@@ -42,6 +25,7 @@ CLEANABLE_TARGETS = [
     "./.coverage",
     "./.coverage.*",
     "./coverage.json",
+    "./htmlcov",
     "./**/.mypy_cache",
     "./**/.pytest_cache",
     "./**/__pycache__",
@@ -50,132 +34,109 @@ CLEANABLE_TARGETS = [
 ]
 
 # Define the default sessions run when `nox` is called on the CLI
-nox.options.default_venv_backend = "virtualenv"
-nox.options.sessions = ["lint", "test"]
+nox.options.default_venv_backend = "uv"
+nox.options.sessions = ["lock", "format", "lint", "test"]
+
+# All linters and formatters are run with `uv run --active`
+LINTERS: list[tuple[str, ...]] = [
+    ("flake8", "--show-source", LINT_PATH, TESTS_PATH),
+    ("mypy", "--pretty", "--package", MODULE_NAME),
+    ("mypy", "--pretty", TESTS_PATH),
+]
+FORMATTERS: list[tuple[str, ...]] = [
+    (
+        "isort",
+        "--force-single-line-imports",
+        "--profile",
+        "black",
+        "--add-import",
+        "from __future__ import annotations",
+        LINT_PATH,
+        TESTS_PATH,
+    ),
+    ("black", LINT_PATH, TESTS_PATH),
+]
+
+# Default args for all 'uv sync' and 'uv run' calls
+UV_ARGS = [
+    "--frozen",
+    "--quiet",
+    "--active",
+]
 
 
-@nox.session()
-def dev(session: nox.Session) -> None:
-    """Setup a development environment by creating the venv and installs dependencies."""
-    # Use the active environement if it exists, otherwise create a new one
-    venv_path = os.environ.get("VIRTUAL_ENV", VENV_PATH)
-
-    if sys.platform == "win32":
-        venv_path = f"{venv_path}/Scripts"
-        activate_command = f"{venv_path}/activate"
-    else:
-        venv_path = f"{venv_path}/bin"
-        activate_command = f"source {venv_path}/activate"
-
-    if not os.path.exists(VENV_PATH):
-        session.run("python", "-m", "venv", VENV_PATH, "--upgrade-deps")
-
-    python = partial(session.run, f"{venv_path}/python", "-m")
-    contraint = ("--constraint", f"{REQUIREMENTS_PATH}/constraints.txt")
-
-    python("pip", "install", "--editable", ".[dev,test]", *contraint, external=True)
-
-    if not os.environ.get("VIRTUAL_ENV"):
-        session.log(f"\n\nRun '{activate_command}' to enter the virtual environment.\n")
+@nox.session(name="dev", python=False)
+def create_dev_environment(session: nox.Session) -> None:
+    """Create a development environment."""
+    session.run_install("uv", "sync", "--frozen")
 
 
-@nox.session(name="test")
+@nox.session(name="test", python=PYTHON_VERSION)
 def run_tests_with_coverage(session: nox.Session) -> None:
-    """Run pytest with coverage, outputs console report and json."""
-    print_standard_logs(session)
+    """Run pytest in isolated environment, display coverage. Extra arguements passed to pytest."""
+    partial = "partial-coverage" in session.posargs
 
-    contraint = ("--constraint", f"{REQUIREMENTS_PATH}/constraints.txt")
+    session.run_install("uv", "sync", *UV_ARGS)
 
-    session.install(".[test]", *contraint)
-
-    coverage = partial(session.run, "python", "-m", "coverage")
+    coverage = functools.partial(session.run, "uv", "run", *UV_ARGS, "coverage")
 
     coverage("erase")
 
-    if "partial-coverage" in session.posargs:
-        coverage("run", "--parallel-mode", "--module", "pytest", TESTS_PATH)
+    if partial:
+        session.posargs.remove("partial-coverage")
+        coverage("run", "--parallel-mode", "--module", "pytest", *session.posargs)
     else:
-        coverage("run", "--module", "pytest", TESTS_PATH)
-        coverage("report", "--show-missing", f"--fail-under={COVERAGE_FAIL_UNDER}")
-        coverage("json")
+        coverage("run", "--module", "pytest", *session.posargs)
+        coverage("report", "--show-missing")
+        coverage("html")
 
 
-@nox.session()
-def coverage_combine(session: nox.Session) -> None:
-    """CI: Combine parallel-mode coverage files and produce reports."""
-    print_standard_logs(session)
+@nox.session(name="combine", python=PYTHON_VERSION)
+def combine_coverage(session: nox.Session) -> None:
+    """Combine parallel-mode coverage files and produce reports."""
+    session.run_install("uv", "sync", *UV_ARGS)
 
-    contraint = ("--constraint", f"{REQUIREMENTS_PATH}/constraints.txt")
+    coverage = functools.partial(session.run, "uv", "run", *UV_ARGS, "coverage")
 
-    session.install("-r", f"{REQUIREMENTS_PATH}/requirements-test.txt", *contraint)
-
-    coverage = partial(session.run, "python", "-m", "coverage")
     coverage("combine")
-    coverage("report", "--show-missing", f"--fail-under={COVERAGE_FAIL_UNDER}")
+    coverage("report", "--show-missing")
+    coverage("html")
     coverage("json")
 
 
-@nox.session(name="lint")
-def run_linters_and_formatters(session: nox.Session) -> None:
-    """Run code formatters, linters, and type checking against all files."""
-    print_standard_logs(session)
+@nox.session(name="lint", python=PYTHON_VERSION)
+def run_linters(session: nox.Session) -> None:
+    """Run code linters, and type checking against all files."""
+    session.run_install("uv", "sync", "--group", "lint", *UV_ARGS)
 
-    contraint = ("--constraint", f"{REQUIREMENTS_PATH}/constraints.txt")
-    session.install(".[dev,test]", *contraint)
-
-    python = partial(session.run, "python", "-m")
-
-    for linter_command in LINTING_COMMANDS:
-        python(*linter_command)
+    for linter_args in LINTERS:
+        session.run("uv", "run", *UV_ARGS, *linter_args)
 
 
-@nox.session()
-def build(session: nox.Session) -> None:
-    """Build distribution files."""
-    print_standard_logs(session)
+@nox.session(name="format", python=PYTHON_VERSION)
+def run_formatters(session: nox.Session) -> None:
+    """Run code formatters against all files."""
+    session.run_install("uv", "sync", "--group", "format", *UV_ARGS)
 
-    session.install("build")
-    session.run("python", "-m", "build")
-
-
-@nox.session(name="update-deps")
-def update_deps(session: nox.Session) -> None:
-    """Process requirement*.txt files, updating only additions/removals."""
-    print_standard_logs(session)
-
-    session.install("pip-tools")
-    session.run(
-        "pip-compile",
-        "--strip-extras",
-        "--no-annotate",
-        "--no-emit-index-url",
-        "--output-file",
-        f"{REQUIREMENTS_PATH}/constraints.txt",
-        *get_requirement_files(),
-    )
+    for formatter_args in FORMATTERS:
+        session.run("uv", "run", *UV_ARGS, *formatter_args)
 
 
-@nox.session(name="upgrade-deps")
-def upgrade_deps(session: nox.Session) -> None:
-    """Process requirement*.txt files and upgrade all libraries as possible."""
-    print_standard_logs(session)
-
-    session.install("pip-tools")
-    session.run(
-        "pip-compile",
-        "--strip-extras",
-        "--no-annotate",
-        "--no-emit-index-url",
-        "--upgrade",
-        "--output-file",
-        f"{REQUIREMENTS_PATH}/constraints.txt",
-        *get_requirement_files(),
-    )
+@nox.session(name="build", python=False)
+def build_artifacts(session: nox.Session) -> None:
+    """Build a sdist and wheel."""
+    session.run("uv", "build")
 
 
-@nox.session(python=False)
-def clean(_: nox.Session) -> None:
-    """Clean cache, .pyc, .pyo, and test/build artifact files from project."""
+@nox.session(name="lock", python=False)
+def validate_lock_file(session: nox.Session) -> None:
+    """Ensure the uv.lock file exists and is aligned with dependencies."""
+    session.run("uv", "lock", "--check")
+
+
+@nox.session(name="clean", python=False)
+def clean_project_files(session: nox.Session) -> None:
+    """Clean cache, .pyc, .pyo, and build artifact files from project."""
     count = 0
     for searchpath in CLEANABLE_TARGETS:
         for filepath in pathlib.Path(".").glob(searchpath):
@@ -185,17 +146,4 @@ def clean(_: nox.Session) -> None:
                 filepath.unlink()
             count += 1
 
-    print(f"{count} files cleaned.")
-
-
-def print_standard_logs(session: nox.Session) -> None:
-    """Reusable output for monitoring environment factors."""
-    version = session.run("python", "--version", silent=True)
-    session.log(f"Running from: {session.bin}")
-    session.log(f"Running with: {version}")
-
-
-def get_requirement_files() -> list[pathlib.Path]:
-    """Get a list of requirement files matching "requirements*.txt"."""
-    glob = pathlib.Path(REQUIREMENTS_PATH).glob("requirements*.txt")
-    return [path for path in glob]
+    session.log(f"{count} files cleaned.")

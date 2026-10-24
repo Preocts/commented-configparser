@@ -26,7 +26,7 @@ _SECTION_PATTERN = re.compile(r"^\s*\[(.+)\]\s*$")
 class CommentedConfigParser(ConfigParser):
     """Custom ConfigParser that preserves comments when writing a loaded config out."""
 
-    def read(
+    def read(  # type: ignore
         self,
         filenames: StrOrBytesPath | Iterable[StrOrBytesPath],
         encoding: str | None = None,
