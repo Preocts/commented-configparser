@@ -9,9 +9,16 @@ from collections.abc import Iterable
 from configparser import ConfigParser
 from io import StringIO
 from typing import TYPE_CHECKING
+from typing import overload
 
 if TYPE_CHECKING:
+    from typing import Any
+    from typing import AnyStr
+
+    from _typeshed import BytesPath
+    from _typeshed import GenericPath
     from _typeshed import StrOrBytesPath
+    from _typeshed import StrPath
     from _typeshed import SupportsWrite
 
 __all__ = ["CommentedConfigParser"]
@@ -26,11 +33,39 @@ _SECTION_PATTERN = re.compile(r"^\s*\[(.+)\]\s*$")
 class CommentedConfigParser(ConfigParser):
     """Custom ConfigParser that preserves comments when writing a loaded config out."""
 
-    def read(  # type: ignore
+    @overload
+    def read(
         self,
-        filenames: StrOrBytesPath | Iterable[StrOrBytesPath],
+        filenames: GenericPath[AnyStr],
         encoding: str | None = None,
-    ) -> list[str]:
+    ) -> list[AnyStr]: ...
+
+    @overload
+    def read(
+        self,
+        filenames: Iterable[StrPath],
+        encoding: str | None = None,
+    ) -> list[str]: ...
+
+    @overload
+    def read(
+        self,
+        filenames: Iterable[BytesPath],
+        encoding: str | None = None,
+    ) -> list[bytes]: ...
+
+    @overload
+    def read(
+        self,
+        filenames: Iterable[StrOrBytesPath],
+        encoding: str | None = None,
+    ) -> list[str | bytes]: ...
+
+    def read(
+        self,
+        filenames: Any,
+        encoding: str | None = None,
+    ) -> list[Any]:
         # Re-implementing the parent method so that the handling of file
         # contents can be routed through .read_file(). Otherwise injecting
         # the comment translation is more difficult.
