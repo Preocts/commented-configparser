@@ -72,9 +72,7 @@ class CommentedConfigParser(ConfigParser):
         if isinstance(filenames, (str, bytes, os.PathLike)):
             filenames = [filenames]
 
-        # This only exists in 3.10+ and assists with unifying encoding.
-        if hasattr(io, "text_encoding"):  # pragma: no cover
-            encoding = io.text_encoding(encoding)
+        encoding = io.text_encoding(encoding)
 
         read_ok = []
         for filename in filenames:
