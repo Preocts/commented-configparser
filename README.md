@@ -1,16 +1,11 @@
-[![Python 3.9 | 3.10 | 3.11 | 3.12 | 3.13 | 3.14](https://img.shields.io/badge/Python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)](https://www.python.org/downloads)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
-
-[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/Preocts/commented-configparser/main.svg)](https://results.pre-commit.ci/latest/github/Preocts/commented-configparser/main)
+[![Python >=3.11](https://img.shields.io/badge/Python->=3.11-blue)](https://www.python.org/downloads)
+[![PyPI - Version](https://img.shields.io/pypi/v/commented-configparser)](https://pypi.org/project/commented-configparser)
 [![Python tests](https://github.com/Preocts/commented-configparser/actions/workflows/python-tests.yml/badge.svg?branch=main)](https://github.com/Preocts/commented-configparser/actions/workflows/python-tests.yml)
 
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Nox](https://img.shields.io/badge/%F0%9F%A6%8A-Nox-D85E00.svg)](https://github.com/wntrblm/nox)
+
 # commented-configparser
-
-- [Contributing Guide and Developer Setup Guide](./CONTRIBUTING.md)
-- [License: MIT](./LICENSE)
-
----
 
 A custom ConfigParser class that preserves comments and most formatting when
 writing loaded config out.
